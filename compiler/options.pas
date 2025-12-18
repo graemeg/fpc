@@ -3284,6 +3284,10 @@ begin
           begin
             paratargetdbg:=dbg_codeview;
           end;
+        'O' :
+          begin
+            paratargetdbg:=dbg_opdf;
+          end;
         'o' :
           begin
             if not UpdateDebugStr(copy(more,j+1),init_settings.debugswitches) then
