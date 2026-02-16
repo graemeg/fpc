@@ -31,7 +31,7 @@ var
  Include all message strings
 
  Add a language with IFDEF LANG_NAME
- just befor the final ELSE. This way English will always be the default.
+ just before the final ELSE. This way English will always be the default.
 }
 
 {$IFDEF LANG_GERMAN}
@@ -49,7 +49,7 @@ var
 {$i bits.inc}
 
 { All streams implementations: }
-{ Tstreams THandleStream TFileStream TResourcseStreams TStringStream }
+{ Tstreams THandleStream TFileStream TResourcesStreams TStringStream }
 { TCustomMemoryStream TMemoryStream }
 {$i streams.inc}
 
@@ -70,10 +70,10 @@ var
 
 { TThread implementation }
 
-{ system independend threading code }
+{ system independent threading code }
 
 var
-  { event executed by SychronizeInternal to wake main thread if it sleeps in
+  { event executed by SynchronizeInternal to wake main thread if it sleeps in
     CheckSynchronize }
   SynchronizeTimeoutEvent: PRtlEvent;
   { the head of the queue containing the entries to be Synchronized - Nil if the
@@ -234,7 +234,7 @@ function ThreadProc(ThreadObjPtr: Pointer): PtrInt;
     //  will call the AfterConstruction method in all cases)
 //    Thread.Suspend;
     try
-      { The thread may be already terminated at this point, e.g. if it was intially
+      { The thread may be already terminated at this point, e.g. if it was initially
         suspended, or if it wasn't ever scheduled for execution for whatever reason.
         So bypass user code if terminated. }
       if not Thread.Terminated then begin
@@ -909,7 +909,7 @@ begin
     as volatile, so the access won't be optimized away by the compiler. (KB) }
   for i:=1 to aIterations do
     begin
-    {$if (FPC_FULLVERSION<30300) or defined(CPULLVM)}
+    {$ifndef FPC_USE_INTRINSICS}
     Inc(SpinWaitDummy); // SpinWaitDummy *MUST* be global
     {$else}
     {$IF defined(CPUX86_64) or Defined(CPUI386)}
@@ -922,10 +922,8 @@ begin
     fpc_ppc_yield;
     {$ELSEIF defined(RISCV) and defined(CPURV_HAS_ZIHINTPAUSE)}
     fpc_riscv_pause;
-    {$ELSE}
-    Inc(SpinWaitDummy); // SpinWaitDummy *MUST* be global
-    {$ENDIF}
     {$ifend}
+    {$endif FPC_USE_INTRINSICS}
     end;
 end;
 
@@ -2876,7 +2874,7 @@ begin
   IntConstList := TThreadList.Create;
   ClassList := TThreadList.Create;
   ClassAliasList := nil;
-  { on unix this maps to a simple rw synchornizer }
+  { on unix this maps to a simple rw synchronizer }
   GlobalNameSpace := TMultiReadExclusiveWriteSynchronizer.Create;
   RegisterInitComponentHandler(TComponent,@DefaultInitHandler);
 end;

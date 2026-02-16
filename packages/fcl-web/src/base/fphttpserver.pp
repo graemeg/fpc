@@ -2,7 +2,7 @@
     $Id: header,v 1.1 2000/07/13 06:33:45 michael Exp $
     This file is part of the Free Component Library (Fcl)
     Copyright (c) 2011- by the Free Pascal development team
-    
+
     Simple HTTP server component.
 
     See the file COPYING.FPC, included in this distribution,
@@ -81,6 +81,7 @@ Type
     FBusy: Boolean;
     FConnectionID: String;
     FEmptyDetected: Boolean;
+    FLastRequestTime: QWord;
     FIsUpgraded: Boolean;
     FOnRequestError: TRequestErrorHandler;
     FOnUnexpectedError: TRequestErrorHandler;
@@ -473,7 +474,7 @@ Type
     // If >0, when no new connection appeared after timeout, OnAcceptIdle is called.
     Property AcceptIdleTimeout : Cardinal Read FAcceptIdleTimeout Write SetAcceptIdleTimeout;
   published
-    //aditional server information
+    //additional server information
     property AdminMail: string read FAdminMail write FAdminMail;
     property AdminName: string read FAdminName write FAdminName;
     property ServerBanner: string read FServerBanner write FServerBanner;
@@ -657,7 +658,17 @@ end;
 
 procedure TFPPooledConnectionHandler.CheckRequest(aConnection: TFPHTTPConnection; var aContinue: Boolean);
 begin
-  if Server.Active and aConnection.AllowNewRequest and aConnection.RequestPending then
+  if not Server.Active or not aConnection.AllowNewRequest then
+    exit;
+  // Enforce keep-alive timeout, matching tmThread behavior
+  if (aConnection.KeepConnectionTimeout > 0)
+     and (GetTickCount64 > aConnection.FLastRequestTime + QWord(aConnection.KeepConnectionTimeout)) then
+  begin
+    RemoveConnection(aConnection);
+    exit;
+  end;
+  // Use non-blocking check (timeout=0) to avoid blocking the accept thread
+  if (Not aConnection.IsUpgraded) and aConnection.Socket.CanRead(0) then
     ScheduleRequest(aConnection);
 end;
 
@@ -929,7 +940,7 @@ end;
 
 procedure TFPHTTPConnectionResponse.EndServerEvents;
 begin
-  inherited EndServerEvents;
+  Connection.Socket.Close;
 end;
 
 { TFPHTTPConnection }
@@ -1343,6 +1354,7 @@ begin
       end;
   end;
   FBusy:=False;
+  FLastRequestTime:=GetTickCount64;
 end;
 
 { TFPHTTPConnectionThread }

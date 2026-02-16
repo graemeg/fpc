@@ -515,8 +515,13 @@ implementation
     function TElfObjData.sectionname(atype:TAsmSectiontype;const aname:string;aorder:TAsmSectionOrder):string;
       const
         secnames : array[TAsmSectiontype] of string[length('__DATA, __datacoal_nt,coalesced')] = ('','',
-          { TODO: sec_rodata is still writable }
-          '.text','.data','.data','.rodata','.bss','.threadvar',
+          '.text','.data',
+{$if defined(support_rodata)}
+          '.rodata',
+{$else defined(support_rodata)}
+          '.data',
+{$endif defined(support_rodata)}
+          '.rodata','.bss','.threadvar',
           '.pdata',
           '.text', { darwin stubs }
           '__DATA,__nl_symbol_ptr',
@@ -575,7 +580,7 @@ implementation
         sep : string[3];
         secname : string;
       begin
-        { section type user gives the user full controll on the section name }
+        { section type user gives the user full control on the section name }
         if atype=sec_user then
           result:=aname
         else
@@ -624,7 +629,7 @@ implementation
 
 
     procedure TElfObjData.writereloc(data:aint;len:aword;p:TObjSymbol;reltype:TObjRelocationType);
-      type 
+      type
         multi = record
           case integer of
           0 : (ba : array[0..sizeof(aint)-1] of byte);
@@ -1078,7 +1083,7 @@ implementation
            createsymtab(data);
            { Create the relocation sections, this needs valid secidx and symidx }
            ObjSectionList.ForEachCall(@section_create_relocsec,data);
-           { recalc nsections to incude the reloc sections }
+           { recalc nsections to include the reloc sections }
            nsections:=1;
            ObjSectionList.ForEachCall(@section_count_sections,@nsections);
            { create .shstrtab }

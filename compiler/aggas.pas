@@ -224,11 +224,11 @@ implementation
 { vtable for a class called Window:                                       }
 { .section .data.rel.ro._ZTV6Window,"awG",@progbits,_ZTV6Window,comdat    }
 { TODO: .data.ro not yet working}
-{$if defined(arm) or defined(aarch64) or defined(riscv64) or defined(powerpc) or defined(x86_64) or defined(loongarch64)}
+{$if defined(support_rodata)}
           '.rodata',
-{$else defined(arm) or defined(aarch64) or defined(riscv64) or defined(powerpc) or defined(x86_64) or defined(loongarch64)}
+{$else defined(support_rodata)}
           '.data',
-{$endif defined(arm) or defined(aarch64) or defined(riscv64) or defined(powerpc) or defined(x86_64) or defined(loongarch64)}
+{$endif defined(support_rodata)}
           '.rodata',
           '.bss',
           '.threadvar',
@@ -398,7 +398,7 @@ implementation
             end;
           end;
 
-        { section type user gives the user full controll on the section name }
+        { section type user gives the user full control on the section name }
         if atype=sec_user then
           secname:=aname;
 
@@ -519,7 +519,7 @@ implementation
          system_i386_OS2,
          system_i386_EMX: ;
          system_m68k_atari, { atari tos/mint GNU AS also doesn't seem to like .section (KB) }
-         system_m68k_amiga, { amiga has old GNU AS (2.14), which blews up from .section (KB) }
+         system_m68k_amiga, { amiga has old GNU AS (2.14), which blows up from .section (KB) }
          system_m68k_sinclairql, { same story, only ancient GNU tools available (KB) }
          system_m68k_palmos, { see above... (KB) }
          system_m68k_human68k: { see above... (KB) }
@@ -1355,7 +1355,7 @@ implementation
                          writer.AsmWriteln(tai_label(hp).labsym.name);
                        end;
 {$ifdef arm}
-                     { do no change arm mode accidently, .globl seems to reset the mode }
+                     { do no change arm mode accidentally, .globl seems to reset the mode }
                      if GenerateThumbCode or GenerateThumb2Code then
                        writer.AsmWriteln(#9'.thumb_func'#9);
 {$endif arm}
@@ -1832,7 +1832,7 @@ implementation
         { on Windows/(PE)COFF, global symbols are hidden by default: global
           symbols that are not explicitly exported from an executable/library,
           become hidden }
-        if (target_info.system in (systems_windows+systems_wince+systems_nativent)) then
+        if (target_info.system in (systems_windows+systems_wince+systems_nativent+[system_i386_go32v2])) then
           exit;
         if target_info.system in systems_darwin then
           writer.AsmWrite(#9'.private_extern ')

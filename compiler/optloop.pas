@@ -38,7 +38,7 @@ unit optloop;
   implementation
 
     uses
-      cutils,cclasses,compinnr,
+      cutils,cclasses,compinnr,cdynset,
       globtype,globals,constexp,
       verbose,
       symdef,symsym,
@@ -283,7 +283,7 @@ unit optloop;
                 { no aliasing? }
                 result:=(([nf_write,nf_modify]*expr.flags)=[]) and not(tabstractvarsym(tloadnode(expr).symtableentry).addr_taken) and
                 { no definition in the loop? }
-                  not(DFASetIn(tfornode(loop).t2.optinfo^.defsum,expr.optinfo^.index));
+                  not(DynSetIn(tfornode(loop).t2.optinfo^.defsum,expr.optinfo^.index));
             end;
           vecn:
             begin
@@ -532,7 +532,7 @@ unit optloop;
                       addstatement(deletecodestatements,ctempdeletenode.create(tempnode));
                     end;
                   { Copy the nf_write,nf_modify flags to the new deref node of the temp.
-                    Othewise assignments to vector elements will be removed. }
+                    Otherwise assignments to vector elements will be removed. }
                   if nflags*[nf_write,nf_modify]<>[] then
                     begin
                       if (n.nodetype<>typeconvn) or (ttypeconvnode(n).left.nodetype<>derefn) then
@@ -670,8 +670,8 @@ unit optloop;
               Internalerror(2017122801);
             if not(assigned(tfornode(n).left.optinfo)) then
               exit;
-            if not(DFASetIn(tfornode(n).t2.optinfo^.usesum,tfornode(n).left.optinfo^.index)) and
-              not(DFASetIn(tfornode(n).t2.optinfo^.defsum,tfornode(n).left.optinfo^.index))  then
+            if not(DynSetIn(tfornode(n).t2.optinfo^.usesum,tfornode(n).left.optinfo^.index)) and
+              not(DynSetIn(tfornode(n).t2.optinfo^.defsum,tfornode(n).left.optinfo^.index))  then
               begin
                 { convert the loop from i:=a to b into i:=b-a+1 to 1 as this simplifies the
                   abort condition }

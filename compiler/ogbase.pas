@@ -1467,9 +1467,12 @@ implementation
           {Data} [oso_Data,oso_load,oso_write],
           { Readonly data with relocations must be initially writable for some targets.
             Moreover, e.g. for ELF it depends on whether the executable is linked statically or
-            dynamically. Here we declare it writable, target-specific descendants must provide
-            further handling. }
+            dynamically. }
+{$if defined(support_rodata)}
+          {roData} [oso_Data,oso_load],
+{$else defined(support_rodata)}
           {roData} [oso_Data,oso_load,oso_write],
+{$endif defined(support_rodata)}
           {roData_norel} [oso_Data,oso_load],
           {bss} [oso_load,oso_write],
           {threadvar} [oso_load,oso_write,oso_threadvar],
@@ -2543,7 +2546,7 @@ implementation
         if assigned(ExeSymbolList.Find(aname)) then
           exit;
         internalObjData.createsection('*'+aname,0,[]);
-        // Use AB_COMMON to avoid muliple defined complaints
+        // Use AB_COMMON to avoid multiple defined complaints
         internalObjData.SymbolDefine(aname,AB_COMMON,AT_DATA);
       end;
 
@@ -2988,7 +2991,7 @@ implementation
           for j:=0 to ObjData.ObjSymbolList.Count-1 do
             begin
               objsym:=TObjSymbol(ObjData.ObjSymbolList[j]);
-              { From the local symbols we are only interessed in the
+              { From the local symbols we are only interested in the
                 VTENTRY and VTINHERIT symbols }
               if objsym.bind=AB_LOCAL then
                 begin
@@ -3637,7 +3640,7 @@ implementation
                             inc(currstabrelocidx);
                           end;
 
-                        { Check if the stab is refering to a removed section }
+                        { Check if the stab is referring to a removed section }
                         if assigned(hstabreloc) then
                           begin
                             if assigned(hstabreloc.Symbol) then

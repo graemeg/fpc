@@ -211,7 +211,7 @@ implementation
             { extended syntax of new and dispose }
             { function styled new is handled in factor }
             { destructors have no parameters }
-            destructorname:=pattern;
+            destructorname:=current_scanner.pattern;
             destructorpos:=current_tokenpos;
             consume(_ID);
 
@@ -279,7 +279,7 @@ implementation
             else
               begin
                 { For new(var,constructor) we need to take a copy because
-                  p is also used in the assignmentn below }
+                  p is also used in the assignment below }
                 if is_new then
                   begin
                     p2:=cderefnode.create(p.getcopy);
@@ -507,7 +507,7 @@ implementation
             { search the constructor also in the symbol tables of
               the parents }
             afterassignment:=false;
-            searchsym_in_class(classh,classh,pattern,srsym,srsymtable,[ssf_search_helper]);
+            searchsym_in_class(classh,classh,current_scanner.pattern,srsym,srsymtable,[ssf_search_helper]);
             consume(_ID);
             do_member_read(classh,false,srsym,p1,again,[cnf_new_call],nil);
             { we need to know which procedure is called }

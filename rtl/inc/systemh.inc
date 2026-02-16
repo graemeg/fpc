@@ -541,7 +541,7 @@ Type
 { Zero - terminated strings }
 
 {$IF DECLARED(AnsiChar)}
-// Compiler defines AnsiChar and WideChar, not AnsiChar
+// Compiler defines AnsiChar and WideChar, not Char
 {$IFDEF UNICODERTL}
   Char = WideChar;
 {$ElSE}
@@ -875,7 +875,7 @@ Var
   StdErr      : Text;
 {$else FPC_STDOUT_TRUE_ALIAS}
   { Optionally, make StdOut and StdErr a true alias of Output
-    and ErrOutput. This is benefical on small systems where the
+    and ErrOutput. This is beneficial on small systems where the
     data segment size is limited, as it lessens the RTL's data
     size by a bit more than 1K. }
   StdOut      : Text Absolute Output;
@@ -913,7 +913,7 @@ procedure FillQWord(var x;count:SizeInt;value:QWord); {$if defined(cpui386) and 
 function  IndexChar(const buf;len:SizeInt;b:ansichar):SizeInt;
 function  IndexChar(const buf;len:SizeInt;b:widechar):SizeInt;
 function  IndexByte(const buf;len:SizeInt;b:byte):SizeInt; {$if defined(cpui386) and not defined(CPUX86_HAS_SSE2)} inline; {$endif}
-function  Indexword(const buf;len:SizeInt;b:word):SizeInt; {$if defined(cpui386) and not defined(CPUX86_HAS_SSE2)} inline; {$endif}
+function  IndexWord(const buf;len:SizeInt;b:word):SizeInt; {$if defined(cpui386) and not defined(CPUX86_HAS_SSE2)} inline; {$endif}
 function  IndexDWord(const buf;len:SizeInt;b:DWord):SizeInt; {$if defined(cpui386) and not defined(CPUX86_HAS_SSE2)} inline; {$endif}
 function  IndexQWord(const buf;len:SizeInt;b:QWord):SizeInt; {$if (defined(cpui386) or defined(cpux86_64)) and not defined(CPUX86_HAS_SSE4_1)} inline; {$endif}
 function  CompareChar(const buf1,buf2;len:SizeInt):SizeInt;

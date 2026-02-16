@@ -1676,7 +1676,7 @@ end;
 procedure TList<T>.SetItem(AIndex: SizeInt; const AValue: T);
 begin
   if (AIndex < 0) or (AIndex >= Count) then
-    raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);   
+    raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
   Notify(FItems[AIndex], cnRemoved);
   FItems[AIndex] := AValue;
   Notify(AValue, cnAdded);
@@ -3385,7 +3385,7 @@ end;
 
 procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.NodeNotify(ANode: PNode; ACollectionNotification: TCollectionNotification; ADispose: boolean);
 begin
-  if Assigned(FOnValueNotify) then
+  if Assigned(FOnNodeNotify) then
     FOnNodeNotify(Self, ANode, ACollectionNotification, ADispose);
   KeyNotify(ANode.Key, ACollectionNotification);
   ValueNotify(ANode.Value, ACollectionNotification);

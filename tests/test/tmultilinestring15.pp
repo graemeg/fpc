@@ -13,10 +13,10 @@ const Y = `
     Goodbye
     every
     body!
-    
+
 `;
 
-{ Test some wacky concatentation }
+{ Test some wacky concatenation }
 
 begin
   Write(X + Y);

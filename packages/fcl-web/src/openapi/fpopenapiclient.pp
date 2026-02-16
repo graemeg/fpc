@@ -41,6 +41,7 @@ Type
     RequestID : TServiceRequestID;
     StatusCode : Integer;
     StatusText : String;
+    ContentType : String;
     Content : String;
     ContentStream : TStream;
   end;
@@ -269,7 +270,7 @@ begin
 end;
 
 function TFPOpenAPIServiceClient.StreamToString(aStream : TStream) : string;
-  
+
 begin
   Result:='';
   SetLength(Result,aStream.Size);
@@ -281,7 +282,7 @@ end;
 
 
 {$IFNDEF VER3_2}
-function TFPOpenAPIServiceClient.ExecuteRequest(const aMethod,aURL: String; aBody,aResponseBody : TStream; aRequestID : TServiceRequestID = '') : TServiceResponse; 
+function TFPOpenAPIServiceClient.ExecuteRequest(const aMethod,aURL: String; aBody,aResponseBody : TStream; aRequestID : TServiceRequestID = '') : TServiceResponse;
 
 var
   lReq : TWebClientRequest;
@@ -303,6 +304,7 @@ begin
       ProcessResponse(lResponse);
       Result.StatusCode:=lResponse.StatusCode;
       Result.StatusText:=lResponse.StatusText;
+      Result.ContentType:=lResponse.Headers.Values['Content-Type'];
       Result.ContentStream:=aResponseBody;
     except
       on E : Exception do
@@ -318,7 +320,7 @@ begin
   end;
 end;
 
-function TFPOpenAPIServiceClient.ExecuteRequest(const aMethod,aURL: String; aBody : TStream; aRequestID : TServiceRequestID = '') : TServiceResponse; 
+function TFPOpenAPIServiceClient.ExecuteRequest(const aMethod,aURL: String; aBody : TStream; aRequestID : TServiceRequestID = '') : TServiceResponse;
 var
   lResponse : TStream;
 begin
@@ -329,7 +331,7 @@ begin
     Result.Content:=StreamToString(lResponse);
   finally
     lResponse.Free;
-  end;  
+  end;
 end;
 
 
@@ -337,14 +339,14 @@ function TFPOpenAPIServiceClient.ExecuteRequest(const aMethod, aURL, aBody: Stri
 
 var
   lBody : TStringStream;
-  
+
 begin
   lBody:=TStringStream.Create(aBody);
   try
     Result:=ExecuteRequest(aMethod,aURL,lBody,aResponseBody,aRequestID);
   finally
     lBody.Free;
-  end;  
+  end;
 end;
 
 
@@ -360,7 +362,7 @@ begin
     Result.Content:=StreamToString(lResponse);
   finally
     lResponse.Free;
-  end;  
+  end;
 end;
 
 function TFPOpenAPIServiceClient.ExecuteRequest(const aMethod,aURL,aBody : String; aCallback : TServiceResponseCallback; aRequestID : TServiceRequestID = '') : TServiceRequestID;
@@ -385,6 +387,7 @@ begin
          var
            aResult : TServiceResponse;
          begin
+           aResult:=default(TServiceResponse);
            if not aResponse.Success then
              begin
              ProcessServiceException(lReq,aResponse.Error);
@@ -392,7 +395,6 @@ begin
                begin
                aResult.StatusText:=Format('%s : %s',[ClassName,Message]);
                aResult.StatusCode:=999;
-               aResult.Content:='';
                end
              end
            else
@@ -400,6 +402,7 @@ begin
              ProcessResponse(aResponse.Response);
              aResult.StatusCode:=aResponse.Response.StatusCode;
              aResult.StatusText:=aResponse.Response.StatusText;
+             aResult.ContentType:=aResponse.Response.Headers.Values['Content-Type'];
              aResult.Content:=aResponse.Response.GetContentAsString;
              end;
            aCallBack(aResult);
@@ -424,7 +427,7 @@ end;
 
 {$ELSE}
 
-function TFPOpenAPIServiceClient.ExecuteRequest(const aMethod,aURL,aBody : String; aResponseBody : TStream; aRequestID : TServiceRequestID = '') : TServiceResponse; 
+function TFPOpenAPIServiceClient.ExecuteRequest(const aMethod,aURL,aBody : String; aResponseBody : TStream; aRequestID : TServiceRequestID = '') : TServiceResponse;
 
 
 var
@@ -447,6 +450,7 @@ begin
       ProcessResponse(lResponse);
       Result.StatusCode:=lResponse.StatusCode;
       Result.StatusText:=lResponse.StatusText;
+      Result.ContentType:=lResponse.Headers.Values['Content-Type'];
       Result.ContentStream:=lResponse.Content;
     except
       on E : Exception do
@@ -478,7 +482,7 @@ begin
   finally
     lResponse.Free;
   end;
-end;  
+end;
 {$ENDIF}
 
 constructor TFPOpenAPIServiceClient.create(aOwner: TComponent);

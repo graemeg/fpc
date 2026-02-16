@@ -30,7 +30,7 @@
        Therefore adding new CPU targets should not change the
        values of the pre-existing targets. (CEC)
        FURTHERMORE : Make sure that this branch values, are
-       consistant with the main branch version always.
+       consistent with the main branch version always.
      *)
        tsystemcpu=
        (
@@ -85,9 +85,9 @@
      (* IMPORTANT NOTE:
        the integer value of this enum is stored in PPU
        files to recognize the target, so if you add new targets
-       allways add them at end PM
+       always add them at end PM
        FURTHERMORE : Make sure that this branch values are
-       consistant with the main branch version always. (CEC)
+       consistent with the main branch version always. (CEC)
        *)
      type
        tsystem =
@@ -217,7 +217,8 @@
              system_m68k_human68k,      { 122 }
              system_mipsel_ps1,         { 123 }
              system_wasm32_wasip1threads,{ 124 }
-             system_wasm32_wasip2       { 125 }
+             system_wasm32_wasip2,      { 125 }
+             system_powerpc64_freebsd   { 126 }
        );
 
      type

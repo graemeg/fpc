@@ -196,7 +196,7 @@ implementation
           begin
             if (token = _ID) then
             begin
-              if pattern='CURRENT' then
+              if current_scanner.pattern='CURRENT' then
               begin
                 if oo_has_enumerator_current in current_structdef.objectoptions then
                   message(parser_e_only_one_enumerator_current);
@@ -209,7 +209,7 @@ implementation
                   Message(parser_e_enumerator_current_is_not_valid) // property has no reader
               end
               else
-                Message1(parser_e_invalid_enumerator_identifier, pattern);
+                Message1(parser_e_invalid_enumerator_identifier, current_scanner.pattern);
               consume(token);
             end
             else
@@ -1715,7 +1715,7 @@ implementation
               end
             else
               olddef:=nil;
-              
+
             { if set explicitly, apply $RTTI directive to current object }
             if current_module.rtti_directive.clause<>rtc_none then
               current_structdef.apply_rtti_directive(current_module.rtti_directive)
@@ -1798,7 +1798,7 @@ implementation
 
         { we need to add this helper to the extendeddefs of the current module,
           as the global and static symtable are not pushed onto the symtable
-          stack again (it will be removed when poping the symtable) }
+          stack again (it will be removed when popping the symtable) }
         if is_objectpascal_helper(current_structdef) and
             (current_objectdef.extendeddef.typ<>errordef) then
           begin

@@ -3,7 +3,7 @@
     Copyright (c) 1999-2002 by the Free Pascal development team
 
     Classes unit for Embedded target
-    
+
     See the file COPYING.FPC, included in this distribution,
     for details about the copyright.
 
@@ -46,9 +46,6 @@ uses
 {$ifdef FPC_TESTGENERICS}
   fgl,
 {$endif}
-{$IF DEFINED(CPUARM) or DEFINED(CPUAARCH64) }
-  intrinsics,
-{$ENDIF}
   typinfo;
 {$ENDIF FPC_DOTTEDUNITS}
 

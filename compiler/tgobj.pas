@@ -310,7 +310,7 @@ implementation
                   ((adjustedpos=align(adjustedpos,alignment)) or
                    (adjustedpos+hp^.size-size = align(adjustedpos+hp^.size-size,alignment))) then
                 begin
-                  { Slot is the same size then leave immediatly }
+                  { Slot is the same size then leave immediately }
                   if (hp^.size=size) then
                    begin
                      bestprev:=hprev;
@@ -325,8 +325,8 @@ implementation
                      { always closest to the source). We also try to use    }
                      { the block with the worst possible alignment that     }
                      { still suffices. And we pick the block which will     }
-                     { have the best alignmenment after this new block is   }
-                     { substracted from it.                                 }
+                     { have the best alignment after this new block is      }
+                     { subtracted from it.                                  }
                      fitatend:=(adjustedpos+hp^.size-size)=align(adjustedpos+hp^.size-size,alignment);
                      fitatbegin:=adjustedpos=align(adjustedpos,alignment);
                      if assigned(bestslot) then
@@ -766,7 +766,7 @@ implementation
             else
               CGMessage1(scanner_w_local_alignment_larger_than_max,def.typename);
           end
-        else if (alignment>lalign) then
+        else if (alignment>lalign) and (current_settings.alignment.localalignmax>1) then
           begin
             if assigned(sym) then
               CGMessage1(scanner_n_local_alignment_larger_than_max,sym.name)

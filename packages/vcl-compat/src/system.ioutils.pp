@@ -228,6 +228,7 @@ type
     class function GetRingtonesPath: string; static;
     class function GetSharedRingtonesPath: string; static;
     class function GetTemplatesPath: string;
+    class function Exists(const aPath: string; aFollowLink: Boolean = True): Boolean; static;
     class function GetAttributes(const aPath: string; aFollowLink: Boolean = True): TFileAttributes; static;
     class procedure SetAttributes(const aPath: string; const aAttributes: TFileAttributes); static;
     class function HasExtension(const aPath: string): Boolean; static;
@@ -818,7 +819,7 @@ Var
                 if (i<=LenPat) then
                   begin
                     repeat
-                      {find a letter (not only first !) which maches pattern[i]}
+                      {find a letter (not only first !) which matches pattern[i]}
                       if UTF8 then
                         begin
                           while (j<=LenName) and
@@ -1513,6 +1514,11 @@ begin
 
 end;
 
+class function TPath.Exists(const aPath: string; aFollowLink: Boolean): Boolean;
+begin
+  Result:=TDirectory.Exists(aPath, aFollowLink) or TFile.Exists(aPath, aFollowLink);
+end;
+
 class function TPath.GetAttributes(const aPath: string; aFollowLink: Boolean
   ): TFileAttributes;
 begin
@@ -2006,11 +2012,11 @@ class function TFile.OpenText(const aPath: string): TStreamReader;
 
 var
   F : TFileStream;
-  
+
 begin
   Result:=Nil;
   F:=TFilestream.Create(aPath,fmOpenRead or fmShareDenyWrite);
-  try  
+  try
     Result := TStreamReader.Create(F,BUFFER_SIZE,True);
   except
     F.Free;

@@ -16,9 +16,20 @@
 {$mode objfpc}
 {$h+}
 {$modeswitch advancedrecords}
-{$IF FPC_FULLVERSION>=30301}
+{$if FPC_FULLVERSION>=30301}
 {$modeswitch FUNCTIONREFERENCES}
 {$define FPC_HAS_REFERENCE_PROCEDURE}
+{$ifndef CPULLVM}
+{$if DEFINED(CPUARM) or DEFINED(CPUAARCH64)}
+   {$define FPC_USE_INTRINSICS}
+{$endif}
+{$if defined(CPUPOWERPC) or defined(CPUPOWERPC64)}
+   {$define FPC_USE_INTRINSICS}
+{$endif}
+{$if defined(CPURISCV32) or defined(CPURISCV64)}
+   {$define FPC_USE_INTRINSICS}
+{$endif}
+{$endif}
 {$endif}
 { determine the type of the resource/form file }
 {$define Win16Res}
@@ -30,6 +41,9 @@ unit Classes;
 
 interface
 
+{$ifdef NO_FPC_USE_INTRINSICS}
+  {$undef FPC_USE_INTRINSICS}
+{$endif}
 {$IFDEF FPC_DOTTEDUNITS}
 uses
   System.SysUtils,
@@ -39,11 +53,9 @@ uses
   System.FGL,
 {$endif}
   System.RtlConsts,
-{$IF FPC_FULLVERSION>=30301}
-{$IF DEFINED(CPUARM) or DEFINED(CPUAARCH64) or defined(CPUPOWERPC) or defined(CPUPOWERPC64)}
+{$ifdef FPC_USE_INTRINSICS}
   System.Intrinsics,
-{$ENDIF}
-{$ENDIF}
+{$endif}
   System.SortBase;
 {$ELSE FPC_DOTTEDUNITS}
 uses
@@ -54,13 +66,22 @@ uses
   fgl,
 {$endif}
   rtlconsts,
-{$IF FPC_FULLVERSION>=30301}
-{$IF DEFINED(CPUARM) or DEFINED(CPUAARCH64) or defined(CPUPOWERPC) or defined(CPUPOWERPC64)}
+{$ifdef FPC_USE_INTRINSICS}
   intrinsics,
-{$ENDIF}
-{$ENDIF}
+{$endif}
   sortbase;
 {$ENDIF FPC_DOTTEDUNITS}
+
+{ Also set FPC_USE_INTRINSICS for i386 and x86_64,
+  but only after _USES clause as there
+  is not intinsics unit for those CPUs }
+{$IF FPC_FULLVERSION>=30301}
+{$ifndef CPULLVM}
+{$if defined(CPUI386) or defined(CPUX86_64)}
+   {$define FPC_USE_INTRINSICS}
+{$endif}
+{$endif}
+{$endif}
 
 {$i classesh.inc}
 
@@ -96,15 +117,15 @@ var
 
   begin
     P:=Pos(' ',L);
-    if P=0 then 
+    if P=0 then
       P:=Length(L)+1;
     Result:=Copy(L,1,P-1);
     Delete(L,1,P);
     L:=Trim(L);
   end;
-  
+
   Function GetNextInt : Int64; inline;
-  
+
   begin
     Result:=StrToint64(GetNextWord(Line));
   end;
@@ -115,7 +136,7 @@ begin
   {$i-}
   AssignFile(aFile,StatFile);
   Reset(aFile);
-  if IOResult<>0 then 
+  if IOResult<>0 then
     exit;
   {$i+}
   While not EOF(aFile) do
@@ -137,7 +158,7 @@ begin
       Result:=True;
       end
     end;
- CloseFile(aFile);  
+ CloseFile(aFile);
 end;
 {$ENDIF}
 

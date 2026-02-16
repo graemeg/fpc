@@ -89,7 +89,7 @@ interface
           ait_llvmdecl, { llvm symbol declaration (global/external variable, external procdef) }
           ait_llvmmetadatanode, (* llvm metadata node: !id = !{type value, ...} *)
           ait_llvmmetadatareftypedconst, { reference to metadata inside a metadata constant }
-          ait_llvmmetadatarefoperand, { llvm metadata referece: !metadataname !id }
+          ait_llvmmetadatarefoperand, { llvm metadata reference: !metadataname !id }
 {$endif}
 {$ifdef wasm}
           ait_export_name,
@@ -712,7 +712,7 @@ interface
        end;
 
 
-       { Generates an uninitializised data block }
+       { Generates an uninitialized data block }
        tai_datablock = class(tailineinfo)
           is_global : boolean;
           sym       : tasmsymbol;
@@ -1431,7 +1431,7 @@ implementation
             is_global:=true;
           end
         else
-          Create(_name,_size,def,_typ);
+          Create_global(_name,_size,def,_typ);
       end;
 
 
@@ -1546,7 +1546,7 @@ implementation
             is_global:=true;
           end
         else
-          Createname(_name, _symtyp, siz, def);
+          Createname_global(_name, _symtyp, siz, def);
       end;
 
 

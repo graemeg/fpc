@@ -117,7 +117,7 @@ interface
             def, and contains a reference to this other def. If this other
             def is in a non-persistent symboltable, the new def cannot actually
             be safely reused everywhere in the current module. This routine
-            abtracts that checking, and also restores the symtable stack
+            abstracts that checking, and also restores the symtable stack
             (which had to be reset before creating the new def, so that the new
              def did not automatically get added to its top) }
           class procedure setup_reusable_def(origdef, newdef: tdef; res: PHashSetItem; oldsymtablestack: tsymtablestack);
@@ -164,7 +164,8 @@ interface
           function  rtti_mangledname(rt:trttitype):TSymStr;override;
           function  OwnerHierarchyName: string; override;
           function  OwnerHierarchyPrettyName: string; override;
-          function  fullownerhierarchyname(skipprocparams:boolean):TSymStr;override;
+          function  fullownerhierarchyname(skipprocparams:boolean;use_pretty : boolean):TSymStr;override;
+
           function  needs_separate_initrtti:boolean;override;
           function  in_currentunit: boolean;
           { regvars }
@@ -343,7 +344,7 @@ interface
           objectoptions  : tobjectoptions;
           rtti           : trtti_directive;
           { for targets that initialise typed constants via explicit assignments
-            instead of by generating an initialised data sectino }
+            instead of by generating an initialised data section }
           tcinitcode     : tnode;
           constructor create(const n:string; dt:tdeftyp;doregister:boolean);
           constructor ppuload(dt:tdeftyp;ppufile:tcompilerppufile);
@@ -371,6 +372,8 @@ interface
           function is_visible_for_rtti(option: trtti_option; vis: tvisibility): boolean; inline;
           function rtti_visibilities_for_option(option: trtti_option): tvisibilities; inline;
           function has_extended_rtti: boolean; inline;
+          { update the name of the object, typically needed after getcopy }
+          procedure setobjrealname(const n: string);
        end;
 
        pvariantrecdesc = ^tvariantrecdesc;
@@ -1274,7 +1277,7 @@ interface
        { return type of the setjmp function }
        exceptionreasontype      : tdef;
 
-       { pointer to the anchestor of all classes }
+       { pointer to the ancestor of all classes }
        class_tobject : tobjectdef;
        { pointer to the base type for custom attributes }
        class_tcustomattribute : tobjectdef;
@@ -2253,7 +2256,7 @@ implementation
       end;
 
 
-    function tstoreddef.fullownerhierarchyname(skipprocparams:boolean): TSymStr;
+    function tstoreddef.fullownerhierarchyname(skipprocparams:boolean; use_pretty : boolean): TSymStr;
       var
         lastowner: tsymtable;
         tmp: tdef;
@@ -2280,7 +2283,12 @@ implementation
           if not assigned(tmp) then
             break;
           if tmp.typ in [recorddef,objectdef] then
-            result:=tabstractrecorddef(tmp).objrealname^+'.'+result
+            begin
+              if use_pretty then
+                result:=tabstractrecorddef(tmp).typesymbolprettyname+'.'+result
+              else
+                result:=tabstractrecorddef(tmp).objrealname^+'.'+result;
+            end
           else
             if tmp.typ=procdef then
               begin
@@ -2691,7 +2699,7 @@ implementation
            tmod:=find_module_from_symtable(owner);
             if assigned(tmod) and assigned(current_module) and (tmod<>current_module) then
               begin
-                comment(v_error,'Definition '+fullownerhierarchyname(false)+' from module '+tmod.mainsource+' registered with current module '+current_module.mainsource);
+                comment(v_error,'Definition '+fullownerhierarchyname(false,true)+' from module '+tmod.mainsource+' registered with current module '+current_module.mainsource);
               end;
            if not assigned(tmod) then
              tmod:=current_module;
@@ -2949,7 +2957,7 @@ implementation
         case stringtype of
           st_shortstring:
             result:=cshortstringtype;
-          { st_longstring is currently not supported but 
+          { st_longstring is currently not supported but
             when it is this case will need to be supplied }
           st_longstring:
             internalerror(2021040801);
@@ -4144,7 +4152,7 @@ implementation
         { parameter types and the resultdef of a procvardef can contain a
           pointer to this procvardef itself, resulting in endless recursion ->
           use the typesym's name instead if it exists (if it doesn't, such as
-          for anynonymous procedure types in macpas/iso mode, then there cannot
+          for anonymous procedure types in macpas/iso mode, then there cannot
           be any recursive references to it either) }
         if (pointeddef.typ<>procvardef) or
            not assigned(pointeddef.typesym) then
@@ -5208,7 +5216,7 @@ implementation
     procedure tabstractrecorddef.apply_rtti_directive(dir: trtti_directive);
       begin
         { records don't support the inherit clause but shouldn't
-          give an error either if used (for Delphi compatibility), 
+          give an error either if used (for Delphi compatibility),
           so we silently enforce the clause as explicit. }
         rtti.clause:=rtc_explicit;
         rtti.options:=dir.options;
@@ -5343,6 +5351,12 @@ implementation
           end;
       end;
 {$endif DEBUG_NODE_XML}
+
+    procedure tabstractrecorddef.setobjrealname(const n:string);
+      begin
+        Freemem(objrealname);
+        objrealname:=stringdup(n);
+      end;
 
 {***************************************************************************
                                   trecorddef
@@ -5679,7 +5693,10 @@ implementation
 
     function trecorddef.GetTypeName : string;
       begin
-         GetTypeName:='<record type>'
+        if assigned(typesym) then
+          GetTypeName:='<record type '+typesymbolprettyname+'>'
+        else
+          GetTypeName:='<record type>';
       end;
 
 {$ifdef DEBUG_NODE_XML}
@@ -5803,7 +5820,11 @@ implementation
          begin
            hp:=tparavarsym(paras[i]);
            if not(vo_is_hidden_para in hp.varoptions) then
-             result:=result+'$'+hp.vardef.mangledparaname;
+             begin
+               if not assigned(hp.vardef) then
+                 internalerror(2025122401);
+               result:=result+'$'+hp.vardef.mangledparaname;
+             end;
          end;
         { add resultdef, add $$ as separator to make it unique from a
           parameter separator }
@@ -6132,7 +6153,7 @@ implementation
         if (typ<>procvardef) and
            (newtyp=procvardef) then
           begin
-            { procvars can't be (class)constructures/destructors etc }
+            { procvars can't be (class)constructors/destructors etc }
             if proctypeoption=potype_constructor then
               begin
                 tabstractprocdef(result).returndef:=tdef(owner.defowner);
@@ -7304,7 +7325,7 @@ implementation
       begin
          inherited buildderef;
          structderef.build(struct);
-         { procsym that originaly defined this definition, should be in the
+         { procsym that originally defined this definition, should be in the
            same symtable }
          procsymderef.build(procsym);
       end;
@@ -7334,7 +7355,7 @@ implementation
       begin
          inherited deref;
          struct:=tabstractrecorddef(structderef.resolve);
-         { procsym that originaly defined this definition, should be in the
+         { procsym that originally defined this definition, should be in the
            same symtable }
          procsym:=tprocsym(procsymderef.resolve);
       end;
@@ -7625,7 +7646,6 @@ implementation
           -> set that one }
         import_name:=stringdup(s);
         include(procoptions,po_has_importname);
-        include(procoptions,po_has_mangledname);
 {$else}
   {$ifdef symansistr}
         _mangledname:=s;
@@ -8377,7 +8397,7 @@ implementation
          objectoptions:=objectoptions+[oo_inherits_not_specialized];
         { initially has the same number of abstract methods as the parent }
         abstractcnt:=c.abstractcnt;
-        { add the data of the anchestor class/object }
+        { add the data of the ancestor class/object }
         if (objecttype in [odt_class,odt_object,odt_objcclass,odt_javaclass]) then
           begin
             tObjectSymtable(symtable).datasize:=tObjectSymtable(symtable).datasize+tObjectSymtable(c.symtable).datasize;
@@ -9148,7 +9168,7 @@ implementation
         i : longint;
       begin
         result:=false;
-        { interfaces being implemented through delegation are not mergable (FK) }
+        { interfaces being implemented through delegation are not mergeable (FK) }
         if (IType<>etStandard) or (MergingIntf.IType<>etStandard) or not(assigned(ProcDefs)) or not(assigned(MergingIntf.ProcDefs)) then
           exit;
         weight:=0;
@@ -9708,7 +9728,7 @@ implementation
        bool8type:=nil;
        bool16type:=nil;
        bool32type:=nil;
-       bool64type:=nil;                
+       bool64type:=nil;
 {$ifdef llvm}
        llvmbool1type:=nil;             { LLVM i1 type }
 {$endif llvm}

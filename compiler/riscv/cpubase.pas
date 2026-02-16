@@ -189,7 +189,7 @@ uses
         { Supervisor }
         A_SFENCE_VM,
 
-        { pseudo instructions for accessiong control and status registers }
+        { pseudo instructions for accessing control and status registers }
         A_RDINSTRET,A_RDINSTRETH,A_RDCYCLE,A_RDCYCLEH,A_RDTIME,A_RDTIMEH,A_CSRR,A_CSRW,A_CSRS,A_CSRC,A_CSRWI,
         A_CSRSI,A_CSRCI
       );
@@ -464,7 +464,7 @@ uses
          The value of this constant is equal to the constant
          PARM_BOUNDARY / BITS_PER_UNIT in the GCC source.
       }
-{$ifdef RISCV64}	  
+{$ifdef RISCV64}
       std_param_align = 8;
 {$endif RISCV64}
 {$ifdef RISCV32}

@@ -111,11 +111,11 @@ uses
             (paramtype.owner=symtablestack.top) then
           begin
             { special handling for specializations inside generic function declarations }
-            prettynamepart:=tdef(symtablestack.top.defowner).fullownerhierarchyname(true)+tprocdef(symtablestack.top.defowner).procsym.prettyname;
+            prettynamepart:=tdef(symtablestack.top.defowner).fullownerhierarchyname(true,true)+tprocdef(symtablestack.top.defowner).procsym.prettyname;
           end
         else
           begin
-            prettynamepart:=paramtype.fullownerhierarchyname(true);
+            prettynamepart:=paramtype.fullownerhierarchyname(true,true);
           end;
         specializename:=specializename+namepart;
         if not first then
@@ -393,7 +393,7 @@ uses
                     case formaldef.typ of
                       recorddef:
                         { delphi has own fantasy about record constraint
-                          (almost non-nullable/non-nilable value type) }
+                          (almost non-nullable/non-nil-able value type) }
                         if m_delphi in current_settings.modeswitches then
                           case paradef.typ of
                             floatdef,enumdef,orddef:
@@ -441,7 +441,7 @@ uses
                           internalerror(2012101102);
                         if formalobjdef.objecttype in [odt_interfacecom,odt_interfacecorba,odt_interfacejava,odt_dispinterface] then
                           begin
-                            { this is either a concerete interface or class type (the
+                            { this is either a concrete interface or class type (the
                               latter without specific implemented interfaces) }
                             case paraobjdef.objecttype of
                               odt_interfacecom,
@@ -583,7 +583,7 @@ uses
               internalerror(2016112801);
             namepart:='_$'+hexstr(module.moduleid,8)+'$$'+parsedtype.unique_id_str;
             specializename:='$'+namepart;
-            prettyname:=parsedtype.fullownerhierarchyname(true)+parsedtype.typesym.prettyname;
+            prettyname:=parsedtype.fullownerhierarchyname(true,true)+parsedtype.typesym.prettyname;
             if assigned(poslist) then
               begin
                 New(parampos);
@@ -800,7 +800,7 @@ uses
                     same number of array elements of a particular type }
                   def:=carraydef.getreusable(tarraydef(def).elementdef,tarraydef(def).highrange-tarraydef(def).lowrange+1);
                 end;
-              newtype:=ctypesym.create(def.fullownerhierarchyname(false)+typName[def.typ]+'$'+def.unique_id_str,def);
+              newtype:=ctypesym.create(def.fullownerhierarchyname(false,true)+typName[def.typ]+'$'+def.unique_id_str,def);
               include(newtype.symoptions,sp_generic_unnamed_type);
               newtype.owner:=def.owner;
               { ensure that there's no warning }
@@ -1897,10 +1897,31 @@ uses
               end;
           end
         else
-          if current_module.is_unit and current_module.in_interface then
-            specializest:=current_module.globalsymtable
-          else
-            specializest:=current_module.localsymtable;
+          begin
+            { if one of the type parameters is owned by a local- or parasymtable
+              then use the localsymtable for specialization }
+            specializest:=nil;
+            for i:=0 to context.paramlist.count-1 do
+              begin
+                psym:=tsym(context.paramlist[i]);
+                if psym.owner.symtabletype in [localsymtable,parasymtable] then
+                  begin
+                    if (psym.owner.symtabletype=localsymtable) or (psym.owner.defowner.typ<>procdef) then
+                      specializest:=psym.owner
+                    else
+                      specializest:=tprocdef(psym.owner.defowner).getsymtable(gs_local);
+                    if not assigned(specializest) then
+                      internalerror(2025122402);
+                    break;
+                  end;
+              end;
+
+            if not assigned(specializest) then
+              if current_module.is_unit and current_module.in_interface then
+                specializest:=current_module.globalsymtable
+              else
+                specializest:=current_module.localsymtable;
+          end;
         if not assigned(specializest) then
           internalerror(2014050910);
 
@@ -2150,7 +2171,7 @@ uses
                       else
                         handle_calling_convention(tprocdef(result),hcc_default_actions_impl);
                       proc_add_definition(tprocdef(result));
-                      { for partial specializations we implicitely declare the routine as
+                      { for partial specializations we implicitly declare the routine as
                         having its implementation although we'll not specialize it in reality }
                       if parse_generic then
                         unset_forwarddef(result);
@@ -2201,7 +2222,7 @@ uses
                 { using changeowner the def is automatically added to the new
                   symtable }
                 tdef(item).ChangeOwner(specializest);
-                { for partial specializations we implicitely declare any methods as having their
+                { for partial specializations we implicitly declare any methods as having their
                   implementations although we'll not specialize them in reality }
                 if parse_generic or has_generic_paras(tstoreddef(item)) then
                   unset_forwarddef(tdef(item));
@@ -2283,13 +2304,13 @@ uses
           if token=_ID then
             begin
               if is_const then
-                generictype:=cconstsym.create_undefined(orgpattern,cundefinedtype)
+                generictype:=cconstsym.create_undefined(current_scanner.orgpattern,cundefinedtype)
               else
-                generictype:=ctypesym.create(orgpattern,cundefinedtype);
+                generictype:=ctypesym.create(current_scanner.orgpattern,cundefinedtype);
               { type parameters need to be added as strict private }
               generictype.visibility:=vis_strictprivate;
               include(generictype.symoptions,sp_generic_para);
-              result.add(orgpattern,generictype);
+              result.add(current_scanner.orgpattern,generictype);
             end;
           consume(_ID);
           fileinfo:=current_tokenpos;
@@ -2959,7 +2980,7 @@ uses
                { only generate the code if we need a body }
                if assigned(tprocdef(hp).struct) and not tprocdef(hp).forwarddef then
                  continue;
-               { and the body is available already (which is implicitely the
+               { and the body is available already (which is implicitly the
                  case if the generic routine is part of another unit) }
                if (
                     not assigned(hmodule) or

@@ -41,6 +41,7 @@
       <Unit>
         <Filename Value="utest.markdown.utils.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="UTest.Markdown.Utils"/>
       </Unit>
       <Unit>
         <Filename Value="../src/markdown.elements.pas"/>
@@ -105,6 +106,7 @@
       <Unit>
         <Filename Value="utest.markdown.parser.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="UTest.Markdown.Parser"/>
       </Unit>
       <Unit>
         <Filename Value="../src/markdown.processors.pas"/>
@@ -120,6 +122,16 @@
         <Filename Value="../src/markdown.fpdocrender.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Markdown.FPDocRender"/>
+      </Unit>
+      <Unit>
+        <Filename Value="../src/markdown.latexrender.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="MarkDown.LatexRender"/>
+      </Unit>
+      <Unit>
+        <Filename Value="utest.markdown.latexrender.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UTest.Markdown.LaTeXRender"/>
       </Unit>
     </Units>
   </ProjectOptions>

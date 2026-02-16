@@ -24,9 +24,9 @@ interface
 
 uses
   {$IFDEF FPC_DOTTEDUNITS}
-  System.SysUtils, System.Generics.Collections, System.Classes, System.StrUtils;
+  System.SysUtils, System.Generics.Collections, System.Classes, System.StrUtils, System.DateUtils;
   {$ELSE}
-  SysUtils, Generics.Collections, Classes, StrUtils;
+  SysUtils, Generics.Collections, Classes, StrUtils, dateutils;
   {$ENDIF}
 
 const
@@ -55,6 +55,7 @@ const
   JsonExtScopePropertyName      = '$scope';
   JsonExtTypePropertyName       = '$type';
   JsonExtUndefinedPropertyName  = '$undefined';
+  JsonExtTimestampPropertyName  = '$timestamp';
 
   JsonExtMaxPropertyNameLen     = Length(JsonExtNumberLongPropertyName);
 
@@ -65,10 +66,10 @@ type
     None, StartObject, StartArray, StartConstructor, PropertyName, Comment,
     Raw, Integer, Float, &String, Boolean, Null, Undefined, EndObject,
     EndArray, EndConstructor, Date, Bytes, Oid, RegEx, DBRef, CodeWScope,
-    MinKey, MaxKey, Decimal
+    MinKey, MaxKey, Decimal, TimeStamp
   );
 
-  
+
   TJsonContainerType          = (None, &Object, &Array, &Constructor);
   TJsonDateFormatHandling     = (Iso, Unix, FormatSettings);
   TJsonDateParseHandling      = (None, DateTime);
@@ -90,13 +91,13 @@ const
     TJsonToken.Oid, TJsonToken.RegEx, TJsonToken.DBRef, TJsonToken.CodeWScope,
     TJsonToken.MinKey, TJsonToken.MaxKey
     ];
-    
+
   JSONStartTokens =  [TJsonToken.StartObject,TJsonToken.StartArray,TJsonToken.StartConstructor];
   JSONEndTokens = [TJsonToken.EndObject, TJsonToken.EndArray, TJsonToken.EndConstructor];
 
 
 Type
-  
+
   TJsonLineInfo = class
   public
     function GetLineNumber: Integer; virtual;
@@ -105,20 +106,20 @@ Type
     property LineNumber: Integer read GetLineNumber;
     property LinePosition: Integer read GetLinePosition;
   end;
-  
+
   TJsonExtendedJsonMode = (None, StrictMode, MongoShell);
-  
+
   TJsonBinaryType = (
-    Generic = $00, 
-    &Function = $01, 
-    BinaryOld = $02,  
-    UUIDOld = $03, 
-    UUID = $04, 
-    MD5 = $05, 
+    Generic = $00,
+    &Function = $01,
+    BinaryOld = $02,
+    UUIDOld = $03,
+    UUID = $04,
+    MD5 = $05,
     UserDefined = $80
   );
 
- 
+
   TJsonPosition = record
   Public
     ContainerType: TJsonContainerType;
@@ -138,10 +139,10 @@ Type
   TJsonPositionHelper = record helper for TJsonPosition
     class function BuildPath(const aPositions: TEnumerablePositions; aFromIndex: Integer = 0): string; static;
   end;
-  
+
   TJsonFiler = class(TJsonLineInfo)
   private
-    function GetPath : String; 
+    function GetPath : String;
   protected
     FStack: specialize TList<TJsonPosition>;
     FCurrentPosition: TJsonPosition;
@@ -197,7 +198,7 @@ Type
     Scope: array of TScopeItem;
     constructor Create(const aCode: String; aScope: TStrings);
   end;
-  
+
   TJsonDBRef = record
   private
     function GetAsString: String;
@@ -263,11 +264,28 @@ Type
     property AsString: String read GetAsString write SetAsString;
   end;
 
+  { TJsonTimestamp }
+
+  TJsonTimestamp = record
+  private
+    function GetAsDateTime: TDateTime;
+    function GetAsString: string;
+    procedure SetAsDateTime(const aValue: TDateTime);
+    procedure SetAsString(const aValue: string);
+  public
+    t: Integer;
+    i: Integer;
+    constructor Create(aTime: Integer; aInc: Integer);
+    property AsString: string read GetAsString write SetAsString;
+    property AsDateTime: TDateTime read GetAsDateTime write SetAsDateTime;
+  end;
+
 var
   JSONFormatSettings: TFormatSettings;
   JSONSerializationVersion: Integer = 36; // as defined in Delphi
 
 implementation
+
 
 { ---------------------------------------------------------------------
   Constants
@@ -417,7 +435,7 @@ function TJsonDecimal128.GetAsString: String;
 begin
   if Assigned(FDecOidBytesCount8ToString) then
     Result:=FDecOidBytesCount8ToString(Self)
-  else  
+  else
     raise EJsonException.Create(SErrDecimalNotAvailable);
 end;
 
@@ -611,21 +629,21 @@ end;
 function TJsonLineInfo.GetLineNumber: Integer;
 
 begin
-  Result:=0; 
+  Result:=0;
 end;
 
 
 function TJsonLineInfo.GetLinePosition: Integer;
 
 begin
-  Result:=0; 
+  Result:=0;
 end;
 
 
 function TJsonLineInfo.HasLineInfo: Boolean;
 
 begin
-  Result:=False; 
+  Result:=False;
 end;
 
 
@@ -827,6 +845,47 @@ begin
     Options:=lParts[2];
     end;
   end;
+end;
+
+{ TJsonTimestamp }
+
+function TJsonTimestamp.GetAsDateTime: TDateTime;
+begin
+  Result:=UnixToDateTime(t,True);
+end;
+
+function TJsonTimestamp.GetAsString: string;
+begin
+  Result:=DateToISO8601(GetAsDateTime,True);
+  if i<>0 then
+    Result:=Result+','+IntToStr(i);
+end;
+
+procedure TJsonTimestamp.SetAsDateTime(const aValue: TDateTime);
+begin
+  t:=DateTimeToUnix(aValue,True);
+  i:=0;
+end;
+
+procedure TJsonTimestamp.SetAsString(const aValue: string);
+var
+  lTime,lInc : String;
+begin
+  lTime:=ExtractWord(1,aValue,[',']);
+  t:=DateTimeToUnix(ISO8601ToDate(lTime,True),True);
+  if WordCount(aValue,[','])<>2 then
+    I:=0
+  else
+    begin
+    lInc:=ExtractWord(2,aValue,[',']);
+    I:=StrToInt(lInc);
+    end;
+end;
+
+constructor TJsonTimestamp.Create(aTime: Integer; aInc: Integer);
+begin
+  t:=aTime;
+  i:=aInc;
 end;
 
 initialization

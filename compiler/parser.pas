@@ -76,7 +76,7 @@ implementation
        current_exceptblock:=0;
        exceptblockcounter:=0;
 
-       { Shut down things when the last file is compiled succesfull }
+       { Shut down things when the last file is compiled successful }
        if (module.is_initial) and (module.state=ms_compiled) and
            (status.errorcount=0) then
          begin
@@ -149,9 +149,6 @@ implementation
 
          { scanner }
          c:=#0;
-         pattern:='';
-         orgpattern:='';
-         cstringpattern:='';
          set_current_scanner(nil);
          switchesstatestackpos:=0;
 
@@ -289,10 +286,10 @@ implementation
              unloaded_units:=nil;
            end;
          { Set default types to nil. At this point they are not valid class pointers. }
-         reset_all_default_types; 
+         reset_all_default_types;
 
          { if there was an error in the scanner, the scanner is
-           still assinged }
+           still assigned }
          if assigned(current_scanner) then
           begin
             current_scanner.free; // no nil needed
@@ -349,40 +346,40 @@ implementation
            case token of
              _ID :
                begin
-                 preprocfile.Add(orgpattern);
+                 preprocfile.Add(current_scanner.orgpattern);
                end;
              _REALNUMBER,
              _INTCONST :
-               preprocfile.Add(pattern);
+               preprocfile.Add(current_scanner.pattern);
              _CSTRING :
                begin
                  i:=0;
-                 while (i<length(cstringpattern)) do
+                 while (i<length(current_scanner.cstringpattern)) do
                   begin
                     inc(i);
-                    if cstringpattern[i]='''' then
+                    if current_scanner.cstringpattern[i]='''' then
                      begin
-                       insert('''',cstringpattern,i);
+                       insert('''',current_scanner.cstringpattern,i);
                        inc(i);
                      end;
                   end;
-                 preprocfile.Add(''''+cstringpattern+'''');
+                 preprocfile.Add(''''+current_scanner.cstringpattern+'''');
                end;
              _CCHAR :
                begin
-                 case pattern[1] of
+                 case current_scanner.pattern[1] of
                    #39 :
-                     pattern:='''''''';
+                     current_scanner.pattern:='''''''';
                    #0..#31,
                    #128..#255 :
                      begin
-                       str(ord(pattern[1]),pattern);
-                       pattern:='#'+pattern;
+                       str(ord(current_scanner.pattern[1]),current_scanner.pattern);
+                       current_scanner.pattern:='#'+current_scanner.pattern;
                      end;
                    else
-                     pattern:=''''+pattern[1]+'''';
+                     current_scanner.pattern:=''''+current_scanner.pattern[1]+'''';
                  end;
-                 preprocfile.Add(pattern);
+                 preprocfile.Add(current_scanner.pattern);
                end;
              _EOF :
                break;

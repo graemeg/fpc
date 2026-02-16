@@ -4,7 +4,7 @@
 
     Classes unit for Nintendo DS
     Copyright (c) 2006 by Francesco Lombardi
-    
+
     See the file COPYING.FPC, included in this distribution,
     for details about the copyright.
 
@@ -47,9 +47,6 @@ uses
 {$ifdef FPC_TESTGENERICS}
   fgl,
 {$endif}
-{$IF DEFINED(CPUARM) or DEFINED(CPUAARCH64) }
-  intrinsics,
-{$ENDIF}
   typinfo;
 {$ENDIF FPC_DOTTEDUNITS}
 

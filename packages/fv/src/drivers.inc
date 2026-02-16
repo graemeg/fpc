@@ -16,7 +16,7 @@
 {                                                          }
 {****************[ THIS CODE IS FREEWARE ]*****************}
 {                                                          }
-{     This sourcecode is released for the purpose to       }
+{     This source code is released for the purpose to      }
 {   promote the pascal language on all platforms. You may  }
 {   redistribute it and/or modify with the following       }
 {   DISCLAIMER.                                            }
@@ -84,13 +84,13 @@ USES
 
    {$IFDEF OS_OS2}                                    { OS2 CODE }
      {$IFDEF PPC_Virtual}                             { VIRTUAL PASCAL UNITS }
-       OS2Api.os2def, OS2Base, OS2PMAPI,                     { Standard units }
+       os2def, OS2Base, OS2PMAPI,                     { Standard units }
      {$ENDIF}
      {$IFDEF PPC_Speed}                               { SPEED PASCAL UNITS }
        BseDos, Os2Def,                                { Standard units }
      {$ENDIF}
      {$IFDEF PPC_FPC}                                 { FPC UNITS }
-       OS2Api.doscalls, Os2Def,                              { Standard units }
+       OS2Api.doscalls, OS2Api.Os2Def,                { Standard units }
      {$ENDIF}
    {$ENDIF}
 
@@ -106,7 +106,7 @@ USES
    {$ENDIF}
 
    {$IFDEF OS_AMIGA}
-      dos, Amiga.Core.Amigados,
+      TP.DOS, Amiga.Core.Amigados,
    {$ENDIF}
 
    System.Console.Video,
@@ -114,8 +114,10 @@ USES
 {$ifdef FV_UNICODE}
    FreeVision.UfvCommon,
    System.Unicode.Graphemebreakproperty,
+   FreeVision.Ufvclip,
 {$else FV_UNICODE}
    FreeVision.Fvcommon,
+   FreeVision.Fvclip,
 {$endif FV_UNICODE}
    System.Objects;                                 { GFV standard units }
 {$ELSE FPC_DOTTEDUNITS}
@@ -165,8 +167,10 @@ USES
 {$ifdef FV_UNICODE}
    UFVCommon,
    GraphemeBreakProperty,
+   ufvclip,
 {$else FV_UNICODE}
    FVCommon,
+   fvclip,
 {$endif FV_UNICODE}
    Objects;                                 { GFV standard units }
 {$ENDIF FPC_DOTTEDUNITS}
@@ -711,8 +715,8 @@ CONST
    RepeatDelay  : Sw_Word = 8;                           { Auto mouse delay }
    SysColorAttr : Sw_Word = $4E4F;                       { System colour attr }
    SysMonoAttr  : Sw_Word = $7070;                       { System mono attr }
-   StartupMode  : Sw_Word = $FFFF;                       { Compatability only }
-   CursorLines  : Sw_Word = $FFFF;                       { Compatability only }
+   StartupMode  : Sw_Word = $FFFF;                       { Compatibility only }
+   CursorLines  : Sw_Word = $FFFF;                       { Compatibility only }
    ScreenBuffer : Pointer = Nil;                      { Compatibility only }
    SaveInt09    : Pointer = Nil;                      { Compatibility only }
    SysErrorFunc : TSysErrorFunc = {$ifdef FPC}@{$endif}SystemError; { System error ptr }
@@ -1358,13 +1362,6 @@ begin
            $e00d : keycode:=kbEnter;
          end;
        end;
-     if (essAlt in key.ShiftState) and (key.UnicodeChar <> #0) then
-     begin
-       // FIX: For Alt+Key combinations, build the KeyCode using the Unicode character
-       // instead of relying on the scancode-based character, which is wrong for non-latin layouts.
-       // The high byte keeps the scan code, the low byte gets the actual character code.
-       keycode := (keycode and $FF00) or (ord(key.UnicodeChar) and $FF);
-     end;
      Event.What:=evKeyDown;
      Event.KeyCode:=keycode;
      Event.CharCode:=chr(keycode and $ff);
@@ -1523,6 +1520,13 @@ begin
           Event.Id:=SysEvent.x;
           Event.InfoWord:=SysEvent.y;
         end;
+      SysPaste :
+        begin
+          Event.What:=evCommand;
+          Event.Command:=cmPasteText;
+          Event.Id:=SysEvent.Len;
+          Event.InfoPtr:=SysEvent.P;
+        end;
       else
         Event.What:=evNothing;
       end;
@@ -1558,6 +1562,7 @@ BEGIN
      MouseEvents := True;                             { Set initialized flag }
     end;
   InitSystemMsg;
+  InitClip;
 END;
 
 {---------------------------------------------------------------------------}
@@ -1565,6 +1570,7 @@ END;
 {---------------------------------------------------------------------------}
 PROCEDURE DoneEvents;
 BEGIN
+  DoneClip;
   DoneSystemMsg;
   {$IFDEF FPC_DOTTEDUNITS}System.Console.{$ENDIF}Mouse.DoneMouse;
   MouseEvents:=false;
@@ -1741,7 +1747,7 @@ VAR W, ResultLength : SmallInt;
      Repeat
        I := L MOD Radix;                              { Radix mod of value }
        S := HexChars[I] + S;                          { Add AnsiChar to string }
-       L := L DIV Radix;                              { Divid by radix }
+       L := L DIV Radix;                              { Divide by radix }
      Until (L = 0);                                   { Until no remainder }
      LongToStr := Sign + S;                           { Return result }
    end;

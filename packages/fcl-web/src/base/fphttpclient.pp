@@ -13,7 +13,7 @@
 
  **********************************************************************}
 {$IFNDEF FPC_DOTTEDUNITS}
-unit fphttpclient;
+unit fpHTTPClient;
 {$ENDIF FPC_DOTTEDUNITS}
 
 {$mode objfpc}{$H+}
@@ -355,7 +355,7 @@ Type
     Procedure FormPost(const URL : string; FormData:  TStrings; const Response: TStrings);
     function FormPost(const URL : String; Const FormData: RawByteString): RawByteString;
     function FormPost(const URL: string; FormData : TStrings): RawByteString;
-    // Simple form 
+    // Simple form
     Class Procedure SimpleFormPost(const URL : String; Const FormData: RawByteString; const Response: TStream);
     Class Procedure SimpleFormPost(const URL : string; FormData:  TStrings; const Response: TStream);
     Class Procedure SimpleFormPost(const URL : String; Const FormData: RawByteString; const Response: TStrings);
@@ -824,7 +824,7 @@ begin
   {$else}
   G:=GetSocketHandler(UseSSL);
   FSocket:=TInetSocket.Create(AHost,APort,G);
-  {$endif}  
+  {$endif}
   try
     if FIOTimeout<>0 then
       FSocket.IOTimeout:=FIOTimeout;
@@ -1647,7 +1647,15 @@ begin
       if (FKeepConnectionReconnectLimit>=0) and (ACount>=KeepConnectionReconnectLimit) then
         break; // reconnect limit is reached -> exit
       If Not SkipReconnect and Not Terminated Then
+        begin
+        // Restore request cookies before retry (bug #40813): (similar to redirect)
+        if (not Assigned(FCookies)) and Assigned(FSentCookies) then
+          begin
+          FCookies:=FSentCookies;
+          FSentCookies:=Nil;
+          end;
         ReconnectToServer(CHost,CPort,AIsHttps);
+        end;
       Inc(ACount);
     Finally
       // On terminate, we close the request
@@ -1967,7 +1975,7 @@ end;
 
 
 class function TFPCustomHTTPClient.SimpleGet(const AURL: String): RawByteString;
- 
+
 begin
   With Self.Create(nil) do
     try

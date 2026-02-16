@@ -345,7 +345,7 @@ begin
       end;
     end
     else
-      case b1 of 
+      case b1 of
         0: break; { end of line }
         1: break; { end of file }
         2: begin  { Next pixel position. Skipped pixels should be left untouched, but we set them to zero }
@@ -359,7 +359,7 @@ begin
                inc(i,b1);
                { aligned on 2 bytes boundary: every group starts on a 2 bytes boundary, but absolute group
                  could end on odd address if there is a odd number of elements, so we pad it  }
-               if (b1 mod 2)<>0 then Stream.Seek(1,soFromCurrent); 
+               if (b1 mod 2)<>0 then Stream.Seek(1,soFromCurrent);
              end;
       end;
   end;
@@ -411,7 +411,7 @@ begin
         end;
       end
       else
-        case b1 of 
+        case b1 of
           0: break; { end of line }
           1: break; { end of file }
           2: begin  { Next pixel position. Skipped pixels should be left untouched, but we set them to zero }
@@ -500,21 +500,36 @@ end;
 function  TFPReaderBMP.InternalCheck (Stream:TStream) : boolean;
 // NOTE: Does not rewind the stream!
 var
-  BFH:TBitMapFileHeader;
+  lBFH:TBitMapFileHeader;
+  lBFI:TBitMapInfoHeader;
   n: Int64;
 begin
   Result:=False;
   if Stream=nil then
     exit;
-  n:=SizeOf(BFH);
-  Result:=Stream.Read(BFH,n)=n;
-  if Result then 
-    begin
-   {$IFDEF ENDIAN_BIG}
-    SwapBMPFileHeader(BFH);
-   {$ENDIF}
-    Result := BFH.bfType = BMmagic; // Just check magic number
-    end;
+  n:=SizeOf(lBFH);
+  if Stream.Read(lBFH,n)<>n then
+    exit;
+  {$IFDEF ENDIAN_BIG}
+  SwapBMPFileHeader(lBFH);
+  {$ENDIF}
+  if lBFH.bfType<>BMmagic then
+    exit;
+  if lBFH.bfReserved<>0 then
+    exit;
+  n:=SizeOf(lBFI);
+  if Stream.Read(lBFI,n)<>n then
+    exit;
+  {$IFDEF ENDIAN_BIG}
+  SwapBMPInfoHeader(lBFI);
+  {$ENDIF}
+  if not (lBFI.Size in [12, 40, 52, 56, 108, 124]) then
+    exit;
+  if not (lBFI.BitCount in [1, 4, 8, 16, 24, 32]) then
+    exit;
+  if not (lBFI.Compression in [BI_RGB..BI_ALPHABITFIELDS]) then
+    exit;
+  Result:=True;
 end;
 
 class function TFPReaderBMP.InternalSize (Stream: TStream): TPoint;

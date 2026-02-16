@@ -161,7 +161,7 @@ interface
                                                 // The original result (if it exists) is passed as an extra parameter
             tf_no_backquote_support,
             { do not generate an object file when smartlinking is turned on,
-              this is usefull for architectures which require a small code footprint }
+              this is useful for architectures which require a small code footprint }
             tf_no_objectfiles_when_smartlinking,
             { indicates that the default value of the ts_cld target switch is 'on' for this target }
             tf_cld,
@@ -174,7 +174,7 @@ interface
             tf_use_psabieh,
             { use high level cfi directives to generate call frame information }
             tf_use_hlcfi,
-            { supports symbol order file (to ensure symbols in vectorised sections are kept in the correct order) }
+            { supports symbol order file (to ensure symbols in vectored sections are kept in the correct order) }
             tf_supports_symbolorderfile,
             { supports hidden/private extern symbols: visible across object files, but local/private in exe/library }
             tf_supports_hidden_symbols,
@@ -266,6 +266,7 @@ interface
                        system_riscv32_linux,system_riscv64_linux,system_xtensa_linux,system_loongarch64_linux];
        systems_dragonfly = [system_x86_64_dragonfly];
        systems_freebsd = [system_aarch64_freebsd,
+                          system_powerpc64_freebsd,
                           system_i386_freebsd,
                           system_x86_64_freebsd];
        systems_netbsd  = [system_i386_netbsd,
@@ -356,7 +357,7 @@ interface
          some newer instructions (like CMOVcc or PREFECTXXX) lead to troubles,
          related to OS or emulator lack of support. }
        systems_i386_default_486 = [system_i386_go32v2, system_i386_watcom,
-                                   system_i386_emx, system_i386_wdosx, 
+                                   system_i386_emx, system_i386_wdosx,
                                    system_i386_beos, system_i386_netware,
                                    system_i386_netwlibc, system_i386_symbian];
 
@@ -1067,6 +1068,10 @@ begin
     {$endif}
     {$ifdef aix}
      default_target(system_powerpc64_aix);
+     {$define default_target_set}
+    {$endif}
+    {$ifdef freebsd}
+     default_target(system_powerpc64_freebsd);
      {$define default_target_set}
     {$endif}
   {$endif cpupowerpc64}

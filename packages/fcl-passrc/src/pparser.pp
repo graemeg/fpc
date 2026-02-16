@@ -1116,7 +1116,7 @@ end;
 function TPasTreeContainer.GetDefaultClassVisibility(AClass: TPasClassType
   ): TPasMemberVisibility;
 begin
-  Result:=visDefault; 
+  Result:=visDefault;
   if AClass=nil then ;  // avoid compiler warning
 end;
 
@@ -1265,7 +1265,7 @@ begin
   FMaxErrorCount:=1;
   FFailOnModuleErors:=True;
   FImplicitUses := TStringList.Create;
-  FImplicitUses.Add('System'); // system always implicitely first.
+  FImplicitUses.Add('System'); // system always implicitly first.
 end;
 
 destructor TPasParser.Destroy;
@@ -1555,7 +1555,7 @@ function TPasParser.TryErrorRecovery(const aContext: TRecoveryContext): boolean;
 var
   StopAt : TTokens;
   Obj : TObject;
-  
+
 begin
   Inc(FErrorCount);
   Result:=FErrorCount<FMaxErrorCount;
@@ -3839,6 +3839,7 @@ var
   MustBeGeneric: Boolean;
   Proc: TPasProcedure;
   CurEl: TPasElement;
+  isThreadVar : boolean;
 begin
   CurBlock := declNone;
   HadTypeSection:=false;
@@ -4015,6 +4016,7 @@ begin
           end;
         declVar, declThreadVar:
           begin
+            isThreadVar:=CurBlock=declThreadvar;
             List := TFPList.Create;
             try
               ParseVarDecl(Declarations, List);
@@ -4025,7 +4027,12 @@ begin
                 if CurEl.ClassType=TPasAttributes then
                   Declarations.Attributes.Add(CurEl)
                 else
+                  begin
+                  if isThreadVar then
+                    Include(TPasVariable(CurEl).VarModifiers,vmThread);
                   Declarations.Variables.Add(TPasVariable(CurEl));
+
+                  end;
                 Engine.FinishScope(stDeclaration,CurEl);
               end;
               if (CurToken<>tkSemicolon) then

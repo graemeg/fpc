@@ -360,7 +360,7 @@ implementation
              if assigned(tstoreddef(def_from).genconstraintdata) or
                  assigned(tstoreddef(def_to).genconstraintdata) then
                begin
-                 { this is bascially a poor man's type checking, if there is a chance
+                 { this is basically a poor man's type checking, if there is a chance
                    that the types are equal considering the constraints, this needs probably
                    to be improved and maybe factored out or even result in a recursive compare_defs_ext }
                  if (def_from.typ<>def_to.typ) and
@@ -639,12 +639,12 @@ implementation
                         is_shortstring(def_to) then
                         eq:=te_equal
                      else if (tstringdef(def_to).stringtype=st_ansistring) and
-                             (tstringdef(def_from).stringtype=st_ansistring) then 
+                             (tstringdef(def_from).stringtype=st_ansistring) then
                       begin
                         { don't convert ansistrings if any condition is true:
                           1) same encoding
                           2) from explicit codepage ansistring to ansistring and vice versa
-                          3) from any ansistring to rawbytestring 
+                          3) from any ansistring to rawbytestring
                           4) from rawbytestring to any ansistring }
                         if (tstringdef(def_from).encoding=tstringdef(def_to).encoding) or
                            ((tstringdef(def_to).encoding=0) and (tstringdef(def_from).encoding=getansistringcodepage)) or
@@ -655,10 +655,10 @@ implementation
                            eq:=te_equal;
                          end
                         else
-                         begin        
+                         begin
                            doconv := tc_string_2_string;
 
-                           { prefere conversion to utf8 codepage }
+                           { prefer conversion to utf8 codepage }
                            if tstringdef(def_to).encoding = globals.CP_UTF8 then
                              eq:=te_convert_l1
                            { else to AnsiString type }
@@ -668,7 +668,7 @@ implementation
                            else
                              eq:=te_convert_l3;
                          end
-                      end          
+                      end
                      else
                      { same string type ? }
                       if (tstringdef(def_from).stringtype=tstringdef(def_to).stringtype) and
@@ -1147,8 +1147,8 @@ implementation
                                     else if subeq>te_convert_l6 then
                                       eq:=pred(subeq)
                                     else if subeq=te_convert_operator then
-                                      { the operater needs to be applied by element, so we tell
-                                        the caller that it's some unpreffered conversion and let
+                                      { the operator needs to be applied by element, so we tell
+                                        the caller that it's some unpreferred conversion and let
                                         it handle the per-element stuff }
                                       eq:=te_convert_l6
                                     else
@@ -1409,7 +1409,7 @@ implementation
                        end;
                      variantdef :
                        begin
-                         { doing this in the compiler avoids a lot of unncessary
+                         { doing this in the compiler avoids a lot of unnecessary
                            copying }
                          if (tvariantdef(def_from).varianttype=vt_olevariant) and
                            (tvariantdef(def_to).varianttype=vt_normalvariant) then
@@ -1622,7 +1622,7 @@ implementation
                              eq:=te_equal
                            end
                          else
-                          { child class pointer can be assigned to anchestor pointers }
+                          { child class pointer can be assigned to ancestor pointers }
                           if (
                               (tpointerdef(def_from).pointeddef.typ=objectdef) and
                               (tpointerdef(def_to).pointeddef.typ=objectdef) and
@@ -1715,7 +1715,7 @@ implementation
                      else if (is_objc_class_or_protocol(def_from) and
                               (def_to=objc_idtype)) or
                              { classrefs are also instances in Objective-C,
-                               hence they're also assignment-cpmpatible with
+                               hence they're also assignment-compatible with
                                id }
                              (is_objcclassref(def_from) and
                               ((def_to=objc_metaclasstype) or
@@ -1816,7 +1816,7 @@ implementation
                         eq:=te_convert_l1;
                       end
                      else
-                      { for example delphi allows the assignement from pointers }
+                      { for example delphi allows the assignment from pointers  }
                       { to procedure variables                                  }
                       if (m_pointer_2_procedure in current_settings.modeswitches) and
                          is_void(tpointerdef(def_from).pointeddef) and
@@ -2061,8 +2061,8 @@ implementation
              begin
                { typed files are all equal to the abstract file type
                name TYPEDFILE in system.pp in is_equal in types.pas
-               the problem is that it sholud be also compatible to FILE
-               but this would leed to a problem for ASSIGN RESET and REWRITE
+               the problem is that it should be also compatible to FILE
+               but this would lead to a problem for ASSIGN RESET and REWRITE
                when trying to find the good overloaded function !!
                so all file function are doubled in system.pp
                this is not very beautiful !!}

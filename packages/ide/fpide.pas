@@ -178,10 +178,10 @@ uses
   fpcatch,
 {$endif HasSignal}
 {$ifdef WinClipSupported}
-  WinClip,
+  FvClip,
 {$endif WinClipSupported}
 {$ifdef Unix}
-  fpKeys,FVClip,
+  fpKeys,
 {$endif Unix}
   FpDpAnsi,WConsts,
   Video,Mouse,Keyboard,
@@ -624,6 +624,7 @@ resourcestring  menu_local_gotosource = '~G~oto source';
                 label_editor_highlightrow = 'Highlight ~r~ow';
                 label_editor_autoclosingbrackets = 'Aut~o~-closing brackets';
                 label_editor_keeptrailingspaces = '~K~eep trailing spaces';
+                label_editor_enhancedwordrightleft = 'Conte~x~t-aware word left/right';
                 label_editor_codecomplete = 'Co~d~eComplete enabled';
                 label_editor_folds = 'E~n~able folds';
                 label_editor_editoroptions = '~E~ditor options';
@@ -710,8 +711,8 @@ resourcestring  menu_local_gotosource = '~G~oto source';
                 label_colors_grp_clock        = 'Clock';
 
                 label_colors_clockview        = 'Clock view';
-                label_colors_highlighcolumn   = 'Higlight column';
-                label_colors_highlightrow     = 'Higlight row';
+                label_colors_highlighcolumn   = 'Highlight column';
+                label_colors_highlightrow     = 'Highlight row';
                 label_colors_errormessages    = 'Error message';
                 label_colors_helptext         = 'Text';
                 label_colors_helplinks        = 'Link';
@@ -1508,7 +1509,6 @@ begin
     UserScreen^.SaveIDEScreen;
   DoneSysError;
   DoneEvents;
-  {$ifdef unix}DoneClip;{$endif}
   { DoneKeyboard should be called last to
     restore the keyboard correctly PM }
 {$ifndef go32v2}
@@ -1516,7 +1516,7 @@ begin
 {$endif ndef go32v2}
   DoneKeyboard;
   If UseMouse then
-    DoneMouse
+    { DoneMouse  called by DoneEvents }
   else
     ButtonCount:=0;
 {  DoneDosMem;}
@@ -1534,12 +1534,11 @@ begin
 {  InitDosMem;}
   InitKeyboard;
   If UseMouse then
-    InitMouse
+    { InitMouse  called by InitEvents }
   else
     ButtonCount:=0;
   oldH:=ScreenHeight;
   oldW:=ScreenWidth;
-  {$ifdef unix}InitClip(@Self);{$endif}
 {$ifndef go32v2}
   initvideo;
 {$endif ndef go32v2}

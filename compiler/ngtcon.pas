@@ -880,7 +880,7 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
               if node.nodetype=stringconstn then
                 begin
                   len:=tstringconstnode(node).len;
-                  { For tp7 the maximum lentgh can be 255 }
+                  { For tp7 the maximum length can be 255 }
                   if (m_tp7 in current_settings.modeswitches) and
                      (len>255) then
                     len:=255;
@@ -1405,7 +1405,7 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
                     else
                       internalerror(2010033005);
                   end;
-                 { For tp7 the maximum lentgh can be 255 }
+                 { For tp7 the maximum length can be 255 }
                  if (m_tp7 in current_settings.modeswitches) and
                     (len>255) then
                   len:=255;
@@ -1615,6 +1615,12 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
             if not def.is_addressonly then
               ftcb.emit_tai(Tai_const.Create_sym(nil),voidpointertype);
           end
+        else if n.nodetype=niln then
+          begin
+            ftcb.queue_emit_ordconst(0,procaddrdef);
+            if not def.is_addressonly then
+              ftcb.emit_tai(Tai_const.Create_sym(nil),voidpointertype);
+          end
         else
           Message(parser_e_illegal_expression);
         ftcb.maybe_end_aggregate(def);
@@ -1703,8 +1709,8 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         error := false;
         while token<>_RKLAMMER do
           begin
-            s:=pattern;
-            sorg:=orgpattern;
+            s:=current_scanner.pattern;
+            sorg:=current_scanner.orgpattern;
             consume(_ID);
             consume(_COLON);
             recsym := tsym(def.symtable.Find(s));
@@ -1898,8 +1904,8 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         vmtwritten:=false;
         while token<>_RKLAMMER do
           begin
-            s:=pattern;
-            sorg:=orgpattern;
+            s:=current_scanner.pattern;
+            sorg:=current_scanner.orgpattern;
             consume(_ID);
             consume(_COLON);
             srsym:=nil;
@@ -2109,8 +2115,8 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         basenode:=nil;
         while token<>_RKLAMMER do
           begin
-            s:=pattern;
-            sorg:=orgpattern;
+            s:=current_scanner.pattern;
+            sorg:=current_scanner.orgpattern;
             consume(_ID);
             consume(_COLON);
             error := false;
@@ -2264,8 +2270,8 @@ function get_next_varsym(def: tabstractrecorddef; const SymList:TFPHashObjectLis
         basenode:=nil;
         while token<>_RKLAMMER do
           begin
-            s:=pattern;
-            sorg:=orgpattern;
+            s:=current_scanner.pattern;
+            sorg:=current_scanner.orgpattern;
             consume(_ID);
             consume(_COLON);
             srsym:=nil;

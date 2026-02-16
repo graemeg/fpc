@@ -2,7 +2,7 @@
 {$mode objfpc}{$H+}
 program fpmake;
 
-uses 
+uses
 {$ifdef unix}
   cthreads,
 {$endif}
@@ -45,6 +45,10 @@ begin
     P.Version:='3.3.1';
 
     P.Options.Add('-S2h');
+
+    { powerpc64-aix compiled IDE needs -CTsmalltoc option }
+    if (Defaults.OS=aix) and (Defaults.CPU=powerpc64) then
+      P.Options.Add('-CTsmalltoc');
 
     T:=P.Targets.AddProgram('fpdoc.pp');
     T.Dependencies.AddUnit('fpdocstrs');

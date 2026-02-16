@@ -959,11 +959,11 @@ implementation
 { vtable for a class called Window:                                       }
 { .section .data.rel.ro._ZTV6Window,"awG",@progbits,_ZTV6Window,comdat    }
 { TODO: .data.ro not yet working}
-{$if defined(arm) or defined(riscv64) or defined(powerpc)}
+{$if defined(support_rodata)}
           '.rodata',
-{$else defined(arm) or defined(riscv64) or defined(powerpc)}
+{$else defined(support_rodata)}
           '.data',
-{$endif defined(arm) or defined(riscv64) or defined(powerpc)}
+{$endif defined(support_rodata)}
           '.rodata',
           '.bss',
           '.tbss',
@@ -1046,7 +1046,7 @@ implementation
           (target_info.system in systems_all_windows+systems_nativent-[system_i8086_win16]) then
           secname:='.rodata';
 
-        { section type user gives the user full controll on the section name }
+        { section type user gives the user full control on the section name }
         if atype=sec_user then
           secname:=aname;
 

@@ -219,7 +219,7 @@ begin
 end;
 
 procedure set_endianess_macros;
-  begin 
+  begin
     { endian define }
     case target_info.endian of
       endian_little :
@@ -2216,6 +2216,12 @@ begin
     else
       target_unsup_features:=[];
   end;
+
+  { monitor support? }
+  if not(target_info.system in systems_aix+systems_bsd+systems_linux+systems_android+
+    systems_nativent+systems_solaris+systems_wasm+systems_all_windows-[system_i8086_win16]+systems_darwin) then
+    Include(target_unsup_features,f_monitor);
+
   if def then
     features:=features-target_unsup_features
   else
@@ -3926,7 +3932,7 @@ begin
              begin
                {  -WB200000 means set trefered base address
                  to $200000, but does not change relocsection boolean
-                 this way we can create both relocatble and
+                 this way we can create both relocatable and
                  non relocatable DLL at a specific base address PM }
                if (length(More)>j) then
                  begin
@@ -5264,7 +5270,7 @@ begin
           exclude(init_settings.moduleswitches,cs_debuginfo);
         end;
       { Some assemblers, like clang, do not support
-        stabs debugging format, switch to dwardé in that case }
+        stabs debugging format, switch to dwordé in that case }
       if (af_no_stabs in asminfos[option.paratargetasm]^.flags) and
          (option.paratargetdbg=dbg_stabs) then
         begin
@@ -5679,23 +5685,23 @@ begin
           init_settings.optimizerswitches:=[
                                           cs_opt_stackframe,
                                           cs_opt_size,              // makes smaller
-                                          cs_opt_uncertain, 
-                                          cs_opt_peephole, 
+                                          cs_opt_uncertain,
+                                          cs_opt_peephole,
                                           cs_opt_tailrecursion,
                                           cs_opt_nodecse,           // makes smaller - don't sets vars to 0
-                                          cs_opt_nodedfa, 
+                                          cs_opt_nodedfa,
                                           cs_opt_loopstrength,
-                                          cs_opt_reorder_fields, 
+                                          cs_opt_reorder_fields,
                                           cs_opt_dead_values,       // makes smaller
                                           cs_opt_remove_empty_proc, // makes smaller
-                                          cs_opt_dead_store_eliminate, 
-                                          cs_opt_forcenostackframe,                                          
+                                          cs_opt_dead_store_eliminate,
+                                          cs_opt_forcenostackframe,
                                           cs_opt_unused_para,       // makes smaller
                                           cs_opt_consts];
 
           // dont work: cs_opt_regvar, cs_opt_constant_propagate
           // dont compile: cs_opt_scheduler
-          // makes larger: cs_opt_autoinline 
+          // makes larger: cs_opt_autoinline
 }
         init_settings.optimizerswitches:=[];
         init_settings.debugswitches:= [];
@@ -5898,11 +5904,12 @@ begin
     begin
       if (target_info.abi=abi_powerpc_sysv) and
          (target_info.endian=endian_little) then
-        target_info.abi:=abi_powerpc_elfv2
-      else
-        if (target_info.abi=abi_powerpc_elfv2) and
+        target_info.abi:=abi_powerpc_elfv2;
+     if (target_info.abi=abi_powerpc_elfv2) and
          (target_info.endian=endian_big) then
-        target_info.abi:=abi_powerpc_sysv
+        target_info.abi:=abi_powerpc_sysv;
+    if (target_info.system=system_powerpc64_freebsd)  then
+        target_info.abi:=abi_powerpc_elfv2;
     end;
 {$endif}
 

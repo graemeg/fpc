@@ -33,7 +33,7 @@ unit nrvadd;
     type
       trvaddnode = class(tcgaddnode)
         function pass_1: tnode; override;
-      protected                            
+      protected
         procedure Cmp(signed,is_smallset: boolean);
 
         function use_mul_helper: boolean; override;
@@ -44,7 +44,7 @@ unit nrvadd;
 
         procedure second_addordinal; override;
 
-        procedure pass_left_and_right;  
+        procedure pass_left_and_right;
 
         function use_fma: boolean; override;
 
@@ -99,7 +99,7 @@ implementation
                 hlcg.location_force_reg(current_asmdata.CurrAsmList,left.location,left.resultdef,left.resultdef,false);
 
               if (right.location.loc=LOC_CONSTANT) and
-                 { right.location.value might be $8000000000000000, 
+                 { right.location.value might be $8000000000000000,
                    and its minus value generates an overflow here }
                  {$ifdef AVOID_OVERFLOW} ((right.location.value = low_value) or {$endif}
                  (not is_imm12(-right.location.value)) {$ifdef AVOID_OVERFLOW}){$endif} then
@@ -117,7 +117,7 @@ implementation
                 hlcg.location_force_reg(current_asmdata.CurrAsmList,left.location,left.resultdef,left.resultdef,false);
 
               if (right.location.loc=LOC_CONSTANT) and
-                 { right.location.value might be $8000000000000000, 
+                 { right.location.value might be $8000000000000000,
                    and its minus value generates an overflow here }
                  {$ifdef AVOID_OVERFLOW} ((right.location.value = low_value) or {$endif}
                  (not is_imm12(-right.location.value)) {$ifdef AVOID_OVERFLOW}){$endif} then
@@ -244,7 +244,7 @@ implementation
                   not(is_signed(right.resultdef));
 
         Cmp(not unsigned,false);
-      end;                  
+      end;
 
 
     procedure trvaddnode.second_addordinal;
@@ -302,7 +302,7 @@ implementation
         else
           Result:=inherited pass_1;
 
-        { if the result is not nil, a new node has been generated and the current node will be discarted }
+        { if the result is not nil, a new node has been generated and the current node will be discarded }
         if Result=nil then
           begin
             if left.resultdef.typ=floatdef then

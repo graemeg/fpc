@@ -206,7 +206,7 @@ type
     MinArenaBinIndex = 96;
     { Maximum size that can be added by AllocVar(isArena := true) to the original request.
       BinIndexToVarSize(MinArenaBinIndex) - 1 is possibly the (minimal) ideal value because it guarantees that
-      there will be no tail left unusable for futher arenas, but can be arbitrary. }
+      there will be no tail left unusable for further arenas, but can be arbitrary. }
     MaxArenaOverallocation = 7968 - 1;
 
   { Adjustable part ends here~ }
@@ -794,7 +794,17 @@ type
         writeln(f);
         if pVarHeader(p - VarHeaderSize)^.ch.h and LastFlag <> 0 then
           break;
+        if pVarHeader(p - VarHeaderSize)^.ch.h and VarSizeMask = 0 then
+        begin
+          writeln(f,'ERROR: block size is zero, cannot find the next block!');
+          break;
+        end;
         p := p + pVarHeader(p - VarHeaderSize)^.ch.h and VarSizeMask;
+        if p > ((pointer(vOs) + (VarOSChunkDataOffset + VarHeaderSize)) + vOs^.size) then
+        begin
+          writeln(f,'ERROR: previous tail points to ',HexStr(p),' which is outside of this OS chunk!');
+          break;
+        end;
       until false;
       needLE := true;
       vOs := vOs^.next;
@@ -1331,7 +1341,7 @@ type
     ar: pointer absolute result;
     fv, fp: pointer;
     arSizeFlags, prevSize2, maxFv, minFragment, fSizeFlags, hNext, hNext2, oldph: uint32;
-    prevSize, binIndex, oldpsize, statv, arSize: SizeUint;
+    prevSize, binIndex, oldpsize, statv, moveSize: SizeUint;
   {$ifdef FPC_HAS_FEATURE_THREADING}
     pts: ^pThreadState;
   {$endif FPC_HAS_FEATURE_THREADING}
@@ -1419,6 +1429,7 @@ type
 
       So if there is a choice, moving is performed if fragments on BOTH sides are larger than 1/8 (12.5%) of the (new) size. }
 
+    oldph := pVarHeader(p)[-1].ch.h;
     if arSizeFlags and PrevIsFreeFlag <> 0 then
     begin
       prevSize2 := pFreeVarTail(p - (VarHeaderSize + FreeVarTailSize))^.size;
@@ -1432,27 +1443,24 @@ type
         if prevSize2 >= MinSearchableVarHeaderAndPayload then
           varFree.Remove(ar);
         inc(arSizeFlags, prevSize2 - PrevIsFreeFlag); { Add prevSize back, and remove PrevIsFreeFlag. }
-        { Move(p^, ar^, ...) is postponed, see below. }
+        moveSize := oldph and VarSizeMask;
+        if uint32(size) < uint32(moveSize) then
+          moveSize := uint32(size);
+        { Might overwrite old p header, so must use oldph from now on.
+          Otherwise is safe: won’t overwrite the header of the free chunk after p, won’t be performed in the no-op case. }
+        Move(p^, ar^, moveSize - VarHeaderSize);
       end else
         { Not moving; finish the removal of the previous chunk from “ar”. arSizeFlags is already decreased by prevSize, and keeps PrevIsFreeFlag. }
         ar := p; { Same as inc(ar, prevSize2). }
     end;
 
-    { Remove the free chunk after p. Note that:
-
-      — Under some circumstances, it can be overwritten with Move, so Move must be postponed.
-
-      — This section might decide that TryResizeVar is a complete no-op and exit “early”, and this decision depends on the decision to move,
-        so the decision to move must be made first.
-        Though a nontrivial amount of work has been done by this point, some more remains and can be skipped to speed up no-op ReallocMems (e.g. 26 → 16 ns).
-        Without shortcutting the no-op case, this entire section can be simply moved above the previous one and postponing Move would not be required. }
-
-    oldph := pVarHeader(p)[-1].ch.h;
     oldpsize := oldph and VarSizeMask;
     if (uint32(size) = uint32(oldpsize)) and (ar = p) then
       { TryResizeVar was a no-op, and with some explicit efforts we managed to write nothing by this point,
         so we use our last chance to get out. }
       exit;
+
+    { Remove the free chunk after p. }
     if oldph and LastFlag = 0 then
     begin
       hNext2 := pVarHeader(p + oldpsize - VarHeaderSize)^.ch.h;
@@ -1461,21 +1469,13 @@ type
     end;
     dec(used, oldpsize);
 
-    if ar <> p then
-    begin
-      if uint32(size) < uint32(oldpsize) then { oldpsize is reused as “moveSize”. }
-        oldpsize := uint32(size);
-      Move(p^, ar^, oldpsize - VarHeaderSize);
-    end;
-
     { Format the free chunk after ar, or its absence. }
     fSizeFlags := uint32(arSizeFlags - uint32(size)) and (VarSizeMask or LastFlag);
     if fSizeFlags >= uint32(MinAnyVarHeaderAndPayload + (MinSearchableVarHeaderAndPayload - MinAnyVarHeaderAndPayload) div LastFlag * (fSizeFlags and LastFlag)) then
     begin
       dec(arSizeFlags, fSizeFlags);
-      arSize := arSizeFlags and VarSizeMask;
-      fp := ar + arSize;
-      pVarHeader(fp)[-1].ofsToOs := pVarHeader(ar)[-1].ofsToOs - int32(arSize);
+      fp := ar + size;
+      pVarHeader(fp)[-1].ofsToOs := pVarHeader(ar)[-1].ofsToOs - int32(size);
       pVarHeader(fp)[-1].ch.h := fSizeFlags;
       if fSizeFlags and LastFlag = 0 then
       begin
@@ -1657,7 +1657,8 @@ type
   begin
     if gs.lockUse <> 0 then
       EnterCriticalSection(HeapInc.gs.lock);
-    FlushToFree; { Performing it under gs.lock guarantees there will be no new toFree requests. }
+    if assigned(toFree) then
+      FlushToFree; { Performing it under gs.lock guarantees there will be no new toFree requests. }
     FreeEmptyArenas; { Has to free all empty arenas, otherwise the chunk that contains only empty arenas can leak. }
 
 {$if not defined(HAS_SYSOSFREE)}
@@ -1693,6 +1694,13 @@ type
       p := pointer(vOs) + (VarOSChunkDataOffset + VarHeaderSize);
       repeat
         h := pVarHeader(p - VarHeaderSize)^.ch.h;
+        { bail out if the next pointer points outside of the allocated OS chunk,
+          or if the size is zero, so the next block would point to ourselves }
+        if (h and VarSizeMask = 0) or
+          ((p + (h and VarSizeMask)) > (pointer(vOs) + (VarOSChunkDataOffset + VarHeaderSize)) + vOs^.size) then
+        begin
+          RunError(203);
+        end;
         if (h and UsedFlag = 0) and (h >= MinSearchableVarHeaderAndPayload) then
           gs.varFree.Add(p, pFreeVarChunk(p)^.binIndex);
         inc(p, h and VarSizeMask);

@@ -498,7 +498,7 @@ end;
            fillchar(instance^, InstanceSize, 0);
            { insert VMT pointer into the new created memory area }
            { (in class methods self contains the VMT!)           }
-           {$IFNDEF SYSTEM_HAS_FEATURE_MONITOR}
+           {$IFNDEF FPC_HAS_FEATURE_MONITOR}
              ppointer(instance)^:=pointer(self);
            {$ELSE}
              {$IFDEF VER3_2}
@@ -755,10 +755,10 @@ end;
         ClassNameIs:=ClassNameIs(SS);
       end;
       {$ENDIF}
-      
+
       class function TObject.ClassNameIs(const name : ShortString) : boolean;
       begin
-        ClassNameIs:=ShortCompareText(PVmt(Self)^.vClassName^, name) = 0;      
+        ClassNameIs:=ShortCompareText(PVmt(Self)^.vClassName^, name) = 0;
       end;
 
       {$ifdef FPC_HAS_FEATURE_ANSISTRINGS}
@@ -766,7 +766,7 @@ end;
 
         var
           SS : ShortString;
-          
+
         begin
            {$if SIZEOF(CHAR)=2}
            SS:=UTF8Encode(Name);
@@ -920,13 +920,13 @@ end;
                Temp:= vmt^.vInitTable;
 {$ifdef FPC_HAS_FEATURE_RTTI}
                { The RTTI format matches one for records, except the type is tkClass.
-                 Since RecordRTTI does not check the type, calling it yields the desired result. }
+                 Since FinalizeRecordFields does not check the type, calling it yields the desired result. }
                if Assigned(Temp) then
-                 RecordRTTI(Self,aligntoqword(Temp+2+PByte(Temp)[1]),@int_finalize);
+                 FinalizeRecordFields(Self,aligntoqword(Temp+2+PByte(Temp)[1]));
 {$endif def FPC_HAS_FEATURE_RTTI}
                vmt:= vmt^.vParent;
              end;
-           {$IFDEF SYSTEM_HAS_FEATURE_MONITOR}
+           {$IFDEF FPC_HAS_FEATURE_MONITOR}
            if Assigned(_MonitorData) then
              TMonitor.FreeMonitorData(_MonitorData);
            {$ENDIF}
@@ -1222,25 +1222,25 @@ end;
         begin
           result:=ClassName;
         end;
-        
+
       procedure TObject.DisposeOf;
       begin
         Free;
       end;
-      
+
       function TObject.GetDisposed : Boolean;
-      
+
       begin
         Result:=False;
-      end;    
-      
+      end;
+
       procedure TObject.CheckDisposed;
-      
+
       begin
         // Do nothing since we have no reference count.
       end;
 
-      {$IFDEF SYSTEM_HAS_FEATURE_MONITOR}
+      {$IFDEF FPC_HAS_FEATURE_MONITOR}
 
        function TObject.SetMonitorData(aData,aCheckOld : Pointer) : Pointer;
        begin
@@ -1251,7 +1251,7 @@ end;
        begin
          Result:=_MonitorData;
        end;
-      {$ENDIF}
+      {$ENDIF FPC_HAS_FEATURE_MONITOR}
 
 
 {****************************************************************************
@@ -1470,7 +1470,7 @@ Procedure TInterfaceThunk.Thunk(aMethod: Longint; aCount : Longint; aData : PArg
 
 begin
   if Assigned(FCallBack) then
-    FCallBack(Self,aMethod,aCount,aData); 
+    FCallBack(Self,aMethod,aCount,aData);
 end;
 
 function TInterfaceThunk.QueryInterface({$IFDEF FPC_HAS_CONSTREF}constref{$ELSE}const{$ENDIF} iid : tguid;out obj) : longint;{$IFNDEF WINDOWS}cdecl{$ELSE}stdcall{$ENDIF};
@@ -1526,7 +1526,7 @@ end;
 
 class operator TMethod.>(const aLeft, aRight: TMethod): Boolean; inline;
 begin
-  Result:=(PtrUInt(aLeft.Data)>PtrUInt(aRight.Data)) 
+  Result:=(PtrUInt(aLeft.Data)>PtrUInt(aRight.Data))
             or
           ((aLeft.Data=aRight.Data) and (PtrUInt(aLeft.Code)>PtrUint(aRight.Code)));
 end;
@@ -1538,7 +1538,7 @@ end;
 
 class operator TMethod.<(const aLeft, aRight: TMethod): Boolean; inline;
 begin
-  Result:=(PtrUInt(aLeft.Data)<PtrUInt(aRight.Data)) 
+  Result:=(PtrUInt(aLeft.Data)<PtrUInt(aRight.Data))
             or
           ((aLeft.Data=aRight.Data) and (PtrUInt(aLeft.Code)<PtrUint(aRight.Code)));
 end;
@@ -2016,6 +2016,6 @@ end;
 
 {$ENDIF}
 
-{$IFDEF SYSTEM_HAS_FEATURE_MONITOR}
+{$IFDEF FPC_HAS_FEATURE_MONITOR}
 {$i monitor.inc}
-{$ENDIF}
+{$ENDIF FPC_HAS_FEATURE_MONITOR}
