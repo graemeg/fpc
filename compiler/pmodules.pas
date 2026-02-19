@@ -219,7 +219,7 @@ implementation
         begin
           { add to used units }
           uu:=curr.addusedunit(hp,false,unitsym);
-          {$IFDEF EnableCTaskPPU}
+          {$IFNDEF DisableCTaskPPU}
           uu.dependent_added:=true;
           {$ENDIF}
         end;
@@ -364,9 +364,9 @@ implementation
 
         { load_intern_types resets the scanner... }
         current_scanner.tempcloseinputfile;
-        state:=tglobalstate.create(true);
+        state:=tglobalstate.create;
         load_intern_types;
-        state.restore(true);
+        state.restore;
         FreeAndNil(state);
         current_scanner.tempopeninputfile;
 
@@ -634,7 +634,7 @@ implementation
           sorg:=current_scanner.orgpattern;
           filepos:=current_tokenpos;
           consume(_ID);
-          while token=_POINT do
+          while current_scanner.token=_POINT do
             begin
               consume(_POINT);
               s:=s+'.'+current_scanner.pattern;
@@ -690,7 +690,7 @@ implementation
            end
           else
            Message1(sym_e_duplicate_id,s);
-          if token=_COMMA then
+          if current_scanner.token=_COMMA then
            begin
              current_scanner.pattern:='';
              consume(_COMMA);
@@ -712,7 +712,7 @@ implementation
          procedure restorestate;
 
          begin
-           state.restore(true);
+           state.restore;
            if assigned(current_scanner) and (current_module.scanner=current_scanner) then
               begin
               if assigned(current_scanner.inputfile) then
@@ -725,7 +725,7 @@ implementation
       begin
         Result:=true;
         current_scanner.tempcloseinputfile;
-        state:=tglobalstate.create(true);
+        state:=tglobalstate.create;
         { Load the units }
         pu:=tused_unit(curr.used_units.first);
         while assigned(pu) do
@@ -736,7 +736,7 @@ implementation
             if pu.in_uses and
                (pu.in_interface=frominterface) then
              begin
-               {$IFDEF EnableCTaskPPU}
+               {$IFNDEF DisableCTaskPPU}
                // always call loadppu for the cycle test
                tppumodule(lu).loadppu(curr);
                if not (curr.state in [ms_compile,ms_compiling_wait,ms_compiling_waitintf,ms_compiling_waitimpl]) then
@@ -1094,7 +1094,7 @@ implementation
         deprecated_seen:=false;
         repeat
           last_is_deprecated:=false;
-          case idtoken of
+          case current_scanner.idtoken of
             _LIBRARY :
               begin
                 include(moduleopt,mo_hint_library);
@@ -1128,17 +1128,17 @@ implementation
             else
               break;
           end;
-          consume(Token);
+          consume(current_scanner.token);
           { handle deprecated message }
-          if ((token=_CSTRING) or (token=_CCHAR)) and last_is_deprecated then
+          if ((current_scanner.token=_CSTRING) or (current_scanner.token=_CCHAR)) and last_is_deprecated then
             begin
               if deprecatedmsg<>nil then
                 internalerror(201001221);
-              if token=_CSTRING then
+              if current_scanner.token=_CSTRING then
                 deprecatedmsg:=stringdup(current_scanner.cstringpattern)
               else
                 deprecatedmsg:=stringdup(current_scanner.pattern);
-              consume(token);
+              consume(current_scanner.token);
               include(moduleopt,mo_has_deprecated_msg);
             end;
         until false;
@@ -1223,7 +1223,7 @@ type
             curr.mainfilepos:=init_procinfo.entrypos;
 
             { parse finalization section }
-            if token=_FINALIZATION then
+            if current_scanner.token=_FINALIZATION then
               begin
                 { Compile the finalize }
                 finalize_procinfo:=create_main_proc(make_mangledname('',curr.localsymtable,'finalize$'),potype_unitfinalize,curr.localsymtable);
@@ -1327,14 +1327,18 @@ type
         {$IFDEF Debug_WaitCRC}
         writeln('parse_unit_interface_declarations ',curr.realmodulename^);
         {$ENDIF}
+        {$IFDEF DisableCTaskPPU}
         if not(cs_compilesystem in current_settings.moduleswitches) and
           (Errorcount=0) then
            tppumodule(curr).getppucrc;
+        {$ELSE}
+        if Errorcount=0 then
+           tppumodule(curr).getppucrc;
+        {$ENDIF}
         curr.in_interface:=false;
         curr.interface_compiled:=true;
 
-        {$IFDEF EnableCTaskPPU}
-        {$ELSE}
+        {$IFDEF DisableCTaskPPU}
         { First reload all units depending on our interface, we need to do this
           in the implementation part to prevent erroneous circular references }
         tppumodule(curr).setdefgeneration;
@@ -1360,7 +1364,7 @@ type
             consume(_IMPLEMENTATION);
             Message1(unit_u_loading_implementation_units,curr.modulename^);
             { Read the implementation units }
-            if token=_USES then
+            if current_scanner.token=_USES then
               begin
               parseusesclause(curr);
               if not loadunits(curr,false) then
@@ -1407,7 +1411,7 @@ type
 
          unitname:=current_scanner.orgpattern;
          consume(_ID);
-         while token=_POINT do
+         while current_scanner.token=_POINT do
            begin
              consume(_POINT);
              unitname:=unitname+'.'+current_scanner.orgpattern;
@@ -1508,7 +1512,7 @@ type
 
          { insert qualifier for the system unit (allows system.writeln) }
          if not(cs_compilesystem in current_settings.moduleswitches) and
-            (token=_USES) then
+            (current_scanner.token=_USES) then
            begin
              // We do this as late as possible.
              if Assigned(curr) then
@@ -1799,9 +1803,8 @@ type
           if not module.usedunitsfinalcrc(waitingmodule) then
             begin
             { Some used units are still compiling, so their CRCs can change.
-              Compute the final CRC of this module, for the case of a
-              circular dependency, and wait.
-            }
+              Compute the final CRC of this module and wait.
+              Needed for compiling circular dependent units. }
             {$IF defined(Debug_WaitCRC) or defined(Debug_FreeParseMem)}
             writeln('finish_compile_unit ',module.realmodulename^,' waiting for used unit CRCs...');
             {$ENDIF}
@@ -1825,6 +1828,7 @@ type
         store_indirect_crc : cardinal;
         i : longint;
         waitingmodule : tmodule;
+        hstatus : TFPCHeapStatus;
 
       begin
         {$IF defined(Debug_WaitCRC) or defined(Debug_FreeParseMem)}
@@ -1918,6 +1922,14 @@ type
 {$ifdef DEBUG_NODE_XML}
         XMLFinalizeNodeFile('unit');
 {$endif DEBUG_NODE_XML}
+        if ((status.verbosity and V_Status)<>0) then
+        begin
+          {$IF defined(Debug_FreeParseMem)}
+          writeln('finish_unit ',module.realmodulename^,' wrote ppu and freed mem.');
+          {$ENDIF}
+          hstatus:=GetFPCHeapStatus;
+          WriteLn(DStr(hstatus.CurrHeapUsed shr 10),'/',DStr(hstatus.CurrHeapSize shr 10),' Kb Used');
+        end;
       end;
 
     function proc_package(curr: tmodule) : boolean;
@@ -1977,7 +1989,7 @@ type
 
          module_name:=current_scanner.orgpattern;
          consume(_ID);
-         while token=_POINT do
+         while current_scanner.token=_POINT do
            begin
              consume(_POINT);
              module_name:=module_name+'.'+current_scanner.orgpattern;
@@ -2024,17 +2036,17 @@ type
            current_namespacelist:=Nil;
 
          {Read the packages used by the package we compile.}
-         if (token=_ID) and (idtoken=_REQUIRES) then
+         if (current_scanner.token=_ID) and (current_scanner.idtoken=_REQUIRES) then
            begin
              { consume _REQUIRES word }
              consume(_ID);
              while true do
                begin
-                 if token=_ID then
+                 if current_scanner.token=_ID then
                    begin
                      module_name:=current_scanner.orgpattern;
                      consume(_ID);
-                     while token=_POINT do
+                     while current_scanner.token=_POINT do
                        begin
                          consume(_POINT);
                          module_name:=module_name+'.'+current_scanner.orgpattern;
@@ -2044,7 +2056,7 @@ type
                    end
                  else
                    consume(_ID);
-                 if token=_COMMA then
+                 if current_scanner.token=_COMMA then
                    consume(_COMMA)
                  else
                    break;
@@ -2070,17 +2082,17 @@ type
            end;
 
          {Load the units used by the program we compile.}
-         if (token=_ID) and (idtoken=_CONTAINS) then
+         if (current_scanner.token=_ID) and (current_scanner.idtoken=_CONTAINS) then
            begin
              { consume _CONTAINS word }
              consume(_ID);
              while true do
                begin
-                 if token=_ID then
+                 if current_scanner.token=_ID then
                    begin
                      module_name:=current_scanner.orgpattern;
                      consume(_ID);
-                     while token=_POINT do
+                     while current_scanner.token=_POINT do
                        begin
                          consume(_POINT);
                          module_name:=module_name+'.'+current_scanner.orgpattern;
@@ -2095,7 +2107,7 @@ type
                    end
                  else
                    consume(_ID);
-                 if token=_COMMA then
+                 if current_scanner.token=_COMMA then
                    consume(_COMMA)
                  else break;
                end;
@@ -2697,7 +2709,7 @@ type
         curr.mainfilepos:=main_procinfo.entrypos;
 
         { finalize? }
-        if token=_FINALIZATION then
+        if current_scanner.token=_FINALIZATION then
           begin
              { Parse the finalize }
              finalize_procinfo:=create_main_proc(make_mangledname('',curr.localsymtable,'finalize$'),potype_unitfinalize,curr.localsymtable);
@@ -2810,7 +2822,7 @@ type
         consume(_LIBRARY);
         program_name:=current_scanner.orgpattern;
         consume(_ID);
-        while token=_POINT do
+        while current_scanner.token=_POINT do
          begin
            consume(_POINT);
            program_name:=program_name+'.'+current_scanner.orgpattern;
@@ -2854,7 +2866,7 @@ type
           consume(_PROGRAM);
           program_name:=current_scanner.orgpattern;
           consume(_ID);
-          while token=_POINT do
+          while current_scanner.token=_POINT do
             begin
               consume(_POINT);
               program_name:=program_name+'.'+current_scanner.orgpattern;
@@ -2863,7 +2875,7 @@ type
           curr.setmodulename(program_name);
           if (target_info.system in systems_unit_program_exports) then
             exportlib.preparelib(program_name);
-          if token=_LKLAMMER then
+          if current_scanner.token=_LKLAMMER then
             begin
                consume(_LKLAMMER);
                paramnum:=1;
@@ -2958,7 +2970,7 @@ type
              proc_library_header(curr);
              consume_semicolon_after_loaded:=true;
            end
-         else if token=_PROGRAM then
+         else if current_scanner.token=_PROGRAM then
            { is there an program head ? }
            begin
              proc_program_header(curr,sc);
@@ -3024,7 +3036,7 @@ type
            end;
 
          { Load the units used by the program we compile. }
-         if token=_USES then
+         if current_scanner.token=_USES then
            begin
              // We can do this here: if there is no uses then the namespace directive makes no sense.
              if Assigned(curr) then
@@ -3038,7 +3050,7 @@ type
          else
            curr.consume_semicolon_after_uses:=false;
 
-         {$IFDEF EnableCTaskPPU}
+         {$IFNDEF DisableCTaskPPU}
          if curr.is_initial then
            load_ok:=false; // delay program, so ctask can finish all units
          if not load_ok then

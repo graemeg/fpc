@@ -491,12 +491,6 @@ Function TTestRunner.ParseOptions : Boolean;
 begin
   Result:=True;
   // Determine runmode
-  if (ParamCount = 0) and (FRunMode=rmUnknown) then // FRunMode can be set earlier in ReadDefaults
-  begin
-    Usage;
-    ExitCode:=1;
-    exit;
-  end;
   if HasOption('h', ArgHelp) then
     FRunMode:=rmHelp
   else if HasOption('s',ArgSuite) then
@@ -507,7 +501,13 @@ begin
   else If HasOption('a',ArgAll) then
     FRunMode:=rmAll
   else if HasOption('l',ArgList) then
-    FRunMode:=rmList;
+    FRunMode:=rmList
+  else if FRunMode = rmUnknown then // FRunMode could have been set earlier in ReadDefaults or due DefaultRunAllTests
+    begin
+    Usage;
+    ExitCode:=1;
+    exit;
+    end;
   // Other options
   if HasOption(ArgFormat) then
     FormatParam:=StrToFormat(GetOptionValue(ArgFormat));
@@ -614,19 +614,23 @@ begin
   if (S <> '') then
     begin
     Writeln(S);
-    Exit;
+    ExitCode:=1;
+    exit;
     end;
   if not HasOption('n',ArgNoConfig) then
     ReadDefaults;
-  if Not ParseOptions then
+  if not ParseOptions then
+    begin
+    ExitCode:=1;
     exit;
+    end;
   Case FRunMode of
     rmHelp: Usage;
     rmList: ShowTestList;
     rmSuite: RunSuite;
     rmAll: DoTestRun(GetTestRegistry);
-  else
-    // rmUnknown
+  else // rmUnknown
+    // do not set the ExitCode here so as not to overwrite the code set in ParseOptions
   end;
 end;
 

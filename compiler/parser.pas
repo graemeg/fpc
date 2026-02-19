@@ -148,7 +148,6 @@ implementation
          InitScannerDirectives;
 
          { scanner }
-         c:=#0;
          set_current_scanner(nil);
          switchesstatestackpos:=0;
 
@@ -343,7 +342,7 @@ implementation
          repeat
            current_scanner.readtoken(true);
            preprocfile.AddSpace;
-           case token of
+           case current_scanner.token of
              _ID :
                begin
                  preprocfile.Add(current_scanner.orgpattern);
@@ -384,12 +383,11 @@ implementation
              _EOF :
                break;
              else
-               preprocfile.Add(tokeninfo^[token].str)
+               preprocfile.Add(tokeninfo^[current_scanner.token].str)
            end;
          until false;
        { free scanner }
          current_scanner.free;
-         current_scanner := nil;
          set_current_scanner(nil);
        { close }
          preprocfile.free;
@@ -489,18 +487,18 @@ implementation
            message if we are trying to use a program as unit.}
          try
            try
-             if (token=_UNIT) or (not module.is_initial) then
+             if (current_scanner.token=_UNIT) or (not module.is_initial) then
                begin
                  module.is_unit:=true;
                  finished:=proc_unit(module);
                end
-             else if (token=_ID) and (idtoken=_PACKAGE) then
+             else if (current_scanner.token=_ID) and (current_scanner.idtoken=_PACKAGE) then
                begin
                  module.IsPackage:=true;
                  finished:=proc_package(module);
                end
              else
-               finished:=proc_program(module,token=_LIBRARY);
+               finished:=proc_program(module,current_scanner.token=_LIBRARY);
            except
              on ECompilerAbort do
                raise;

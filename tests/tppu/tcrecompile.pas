@@ -15,6 +15,7 @@ type
   private
     FCompiled: TStringList;
     FMainSrc: string;
+    FOptionUr: boolean;
     FOutDir: string;
     FPP: string;
     FStep: string;
@@ -33,6 +34,7 @@ type
     property OutDir: string read FOutDir write FOutDir;
     property MainSrc: string read FMainSrc write FMainSrc;
     property Compiled: TStringList read FCompiled write FCompiled;
+    property OptionUr: boolean read FOptionUr write FOptionUr;
     property Step: string read FStep write FStep;
   public
     constructor Create; override;
@@ -48,6 +50,9 @@ type
     procedure TestCycle3_ChangeC; // prog->ant->bird->cat, cat.impl->ant, change cat
     procedure TestCycleImpl3_ChangeC; // prog->ant.impl->bird.impl->cat, cat.impl->ant, change cat
 
+    // -Ur Generate release unit files (never automatically recompiled)
+    procedure TestUr_cycle2;
+
     procedure TestChangeInlineBodyBug; // Bug: prog+1 unit plus a package of 2 units, change of inline body should change crc, but does not
 
     procedure TestBug41457; // two cycles of size 2 and 3
@@ -57,6 +62,11 @@ type
     procedure TestImplInline2; // program + 2 units cycle, impl inline
     procedure TestImplInline_Bug41291; // program plus 3 cycles
     procedure TestImplInline3; // program + 2 units cycle, impl inline, implementation changed
+
+    // inherited
+    procedure TestAncestor_ChangeInheritedMethod; // changing inherited method in an indirectly used unit
+    // ToDo: TestAncestor_ChangeInheritedMethodParamType; // changing inherited method para type in an indirectly used unit
+    //         the indirect_crc does not yet support this. 16th Feb 2026
 
     // generics
     procedure TestGeneric_IndirectUses; // specialization of an inherited class in an indirectly used unit
@@ -74,6 +84,7 @@ begin
   UnitPath:='';
   OutDir:='';
   MainSrc:='';
+  OptionUr:=false;
   Compiled:=TStringList.Create;
 end;
 
@@ -153,6 +164,8 @@ begin
   try
     Params.Add('-Fu'+UnitPath);
     Params.Add('-FE'+OutDir);
+    if OptionUr then
+      Params.Add('-Ur');
     Params.Add(MainSrc);
     if not RunTool(PP,Params,'',false,true,Lines) then
       Fail('compile failed, Step='+Step);
@@ -292,13 +305,8 @@ begin
   Step:='Second compile';
   UnitPath:=Dir+';'+Dir+PathDelim+'src2';
   Compile;
-  {$IFDEF EnableCTaskPPU}
   // the main src is always compiled, bird changed, ant is only reloaded, not recompiled
   CheckCompiled(['changeleaf1_prg.pas','changeleaf1_bird.pas']);
-  {$ELSE}
-  // the main src is always compiled, bird changed, so ant must be recompiled as well
-  CheckCompiled(['changeleaf1_prg.pas','changeleaf1_ant.pas','changeleaf1_bird.pas']);
-  {$ENDIF}
 end;
 
 procedure TTestRecompile.TestChangeInner1;
@@ -396,15 +404,10 @@ begin
   Step:='Second compile';
   UnitPath:=Dir+';'+Dir+PathDelim+'src2';
   Compile;
-  {$IFDEF EnableCTaskPPU}
   // the main src is always compiled, cat changed but not crc,
   // because a ppu needs the crc, bird waits in intf, so ant waits in intf, creating a waiting loop
   // triggering a recompile of all the ppus of the whole cycle
   CheckCompiled(['cycle3_changec_prg.pas','cycle3_changec_ant.pas','cycle3_changec_bird.pas','cycle3_changec_cat.pas']);
-  {$ELSE}
-  // the main src is always compiled, cat changed, so bird must be recompiled as well
-  CheckCompiled(['cycle3_changec_prg.pas','cycle3_changec_ant.pas','cycle3_changec_bird.pas','cycle3_changec_cat.pas']);
-  {$ENDIF}
 end;
 
 procedure TTestRecompile.TestCycleImpl3_ChangeC;
@@ -428,13 +431,36 @@ begin
   Step:='Second compile';
   UnitPath:=Dir+';'+Dir+PathDelim+'src2';
   Compile;
-  {$IFDEF EnableCTaskPPU}
   // the main src is always compiled, cat changed but not crc
   CheckCompiled(['cycleimpl3_changec_prg.pas','cycleimpl3_changec_cat.pas']);
-  {$ELSE}
-  // the main src is always compiled, cat changed, so bird must be recompiled as well
-  CheckCompiled(['cycleimpl3_changec_prg.pas','cycleimpl3_changec_ant.pas','cycleimpl3_changec_bird.pas','cycleimpl3_changec_cat.pas']);
-  {$ENDIF}
+end;
+
+procedure TTestRecompile.TestUr_cycle2;
+// ant->bird, bird.impl->ant
+var
+  Dir: String;
+begin
+  Dir:='ur_cycle2';
+  UnitPath:=Dir;
+  OutDir:=Dir+PathDelim+'ppus';
+  MainSrc:=Dir+PathDelim+'ur_cycle2_ant.pas';
+  OptionUr:=true;
+
+  Step:='First compile';
+  CleanOutputDir;
+  Compile;
+  CheckCompiled(['ur_cycle2_ant.pas','ur_cycle2_bird.pas']);
+
+  Step:='Second compile, only ant';
+  Compile;
+  // the main src is always compiled, bird is kept even though it is part of the cycle
+  CheckCompiled(['ur_cycle2_ant.pas']);
+
+  Step:='Third compile, only bird';
+  MainSrc:=Dir+PathDelim+'ur_cycle2_bird.pas';
+  Compile;
+  // the main src is always compiled, ant is kept even though it is part of the cycle
+  CheckCompiled(['ur_cycle2_bird.pas']);
 end;
 
 procedure TTestRecompile.TestChangeInlineBodyBug;
@@ -512,12 +538,7 @@ begin
 
   Step:='Second compile';
   Compile;
-  {$IFDEF EnableCTaskPPU}
   CheckCompiled(['bug41457_ant.pas']);
-  {$ELSE}
-  // the main src is always compiled
-  CheckCompiled(['bug41457_ant.pas','bug41457_bird.pas','bug41457_seagull.pas']);
-  {$ENDIF}
 end;
 
 procedure TTestRecompile.TestImplInline1;
@@ -535,13 +556,8 @@ begin
 
   Step:='Second compile';
   Compile;
-  {$IFDEF EnableCTaskPPU}
   // the main src is always compiled
   CheckCompiled(['implinline1_ant.pas']);
-  {$ELSE}
-  // the main src is always compiled, and since bird ppu depends on ant, it is always compiled as well
-  CheckCompiled(['implinline1_ant.pas','implinline1_bird.pas']);
-  {$ENDIF}
 end;
 
 procedure TTestRecompile.TestImplInline2;
@@ -609,6 +625,33 @@ begin
   CheckCompiled(['implinline3_prg.pas','implinline3_ant.pas','implinline3_bird.pas']);
 end;
 
+procedure TTestRecompile.TestAncestor_ChangeInheritedMethod;
+// ant->bird->cat->eagle, change method in eagle used by bird
+var
+  Dir: String;
+begin
+  Dir:='ancestorchange1';
+  UnitPath:=Dir+';'+Dir+PathDelim+'src1';
+  OutDir:=Dir+PathDelim+'ppus';
+  MainSrc:=Dir+PathDelim+'ancestorchange1_ant.pas';
+  MakeDateDiffer(
+    Dir+PathDelim+'src1'+PathDelim+'ancestorchange1_eagle.pas',
+    Dir+PathDelim+'src2'+PathDelim+'ancestorchange1_eagle.pas');
+
+  Step:='First compile';
+  CleanOutputDir;
+  Compile;
+  CheckCompiled(['ancestorchange1_ant.pas','ancestorchange1_bird.pas','ancestorchange1_cat.pas',
+    'ancestorchange1_eagle.pas']);
+
+  Step:='Second compile';
+  UnitPath:=Dir+';'+Dir+PathDelim+'src2';
+  Compile;
+  // the main src is always compiled, cat intf class TCat changed, so bird and ant are recompiled
+  CheckCompiled(['ancestorchange1_ant.pas','ancestorchange1_bird.pas','ancestorchange1_cat.pas',
+    'ancestorchange1_eagle.pas']);
+end;
+
 procedure TTestRecompile.TestGeneric_IndirectUses;
 // prog->ant.impl->bird->cat, ant specializes cat, change the generic func of cat
 var
@@ -631,16 +674,8 @@ begin
   Step:='Second compile';
   UnitPath:=Dir+';'+Dir+PathDelim+'src2';
   Compile;
-  {$IFDEF EnableCTaskPPU}
   // the main src is always compiled, cat impl of the generic changed, so specialization in ant changed
   CheckCompiled(['generic_indirectuses_prg.pas','generic_indirectuses_ant.pas','generic_indirectuses_cat.pas']);
-  {$ELSE}
-  // the main src is always compiled,
-  // cat changed, so bird must be recompiled as well. bird should get the same CRCs.
-  // finally even though ant does ant directly use cat, ant specializes the changed generic
-  //   function from cat, so ant must be recompiled as well.
-  CheckCompiled(['generic_indirectuses_prg.pas','generic_indirectuses_ant.pas','generic_indirectuses_bird.pas','generic_indirectuses_cat.pas']);
-  {$ENDIF}
 end;
 
 initialization

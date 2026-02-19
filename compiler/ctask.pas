@@ -72,14 +72,12 @@ type
     // Find the task for module m
     function findtask(m : tmodule) : ttask_list;
     // Can we continue processing this module ? If not, firstwaiting contains first module that m is waiting for.
-    function cancontinue(m : tmodule; checksub : boolean; out firstwaiting: tmodule): boolean;
+    function cancontinue(m : tmodule; out firstwaiting: tmodule): boolean;
     // Overload of cancontinue, based on task.
     function cancontinue(t: ttask_list; out firstwaiting: tmodule): boolean; inline;
-    // Check modules waiting for t, find highest state and count them
-    function countwaiting(m : tmodule; out highest_state: tmodulestate; out firsthighestwaiting: tmodule): integer; // EnableCTaskPPU: remove
     // Continue processing this module. Return true if the module is done and can be removed.
     function continue_task(t : ttask_list): Boolean;
-    {$IFDEF EnableCTaskPPU}
+    {$IFNDEF DisableCTaskPPU}
     // Check for a circular dependency and fix it
     function check_cycle: boolean;
     {$ENDIF}
@@ -150,15 +148,15 @@ end;
 procedure ttask_list.SaveState;
 begin
   if State=Nil then
-    State:=tglobalstate.Create(true)
+    State:=tglobalstate.Create
   else
-    State.save(true);
+    State.save;
 end;
 
 procedure ttask_list.RestoreState;
 begin
   if not module.is_reset then
-    state.restore(true);
+    state.restore;
   if assigned(current_scanner) and assigned(current_scanner.inputfile) then
       if current_scanner.inputfile.closed then
       begin
@@ -173,14 +171,14 @@ constructor ttask_handler.create;
 begin
   list:=ttasklinkedlist.Create;
   hash:=TFPHashList.Create;
-  {$IFDEF EnableCTaskPPU}
+  {$IFNDEF DisableCTaskPPU}
   tmodule.queue_module:=@addmodule;
   {$ENDIF}
 end;
 
 destructor ttask_handler.destroy;
 begin
-  {$IFDEF EnableCTaskPPU}
+  {$IFNDEF DisableCTaskPPU}
   tmodule.queue_module:=nil;
   {$ENDIF}
   hash.free;
@@ -203,35 +201,7 @@ begin
   {$IFDEF DEBUG_CTASK_VERBOSE}Writeln('No task found for '+m.ToString);{$ENDIF}
 end;
 
-function ttask_handler.cancontinue(m: tmodule; checksub : boolean; out firstwaiting: tmodule): boolean;
-
-  procedure CheckUsed(out acandidate : tmodule);
-
-  var
-    itm : TLinkedListItem;
-    iscandidate : boolean;
-    m2 : tmodule;
-
-  begin
-    acandidate:=nil;
-    itm:=m.used_units.First;
-    while assigned(itm) do
-      begin
-      iscandidate:=Not (tused_unit(itm).u.state in [ms_processed,ms_compiled]);
-      if iscandidate then
-        begin
-        acandidate:=tused_unit(itm).u;
-        if cancontinue(acandidate,false,m2) then
-          break;
-        end;
-      itm:=itm.Next;
-      end;
-    acandidate:=nil;
-  end;
-
-var
-  m2 : tmodule;
-
+function ttask_handler.cancontinue(m: tmodule; out firstwaiting: tmodule): boolean;
 begin
   firstwaiting:=nil;
 
@@ -239,7 +209,7 @@ begin
   if (m.is_initial and not m.is_unit) and (list.count>1) then
     exit(False);
 
-  {$IFDEF EnableCTaskPPU}
+  {$IFNDEF DisableCTaskPPU}
   if m.do_reload then
     cancontinue:=tppumodule(m).canreload(firstwaiting)
   else
@@ -248,7 +218,7 @@ begin
     case m.state of
       ms_unknown : cancontinue:=true;
       ms_registered : cancontinue:=true;
-      {$IFDEF EnableCTaskPPU}
+      {$IFNDEF DisableCTaskPPU}
       ms_load: cancontinue:=tppumodule(m).ppuloadcancontinue(firstwaiting);
       {$ENDIF}
       ms_compile : cancontinue:=true;
@@ -260,18 +230,13 @@ begin
       ms_compiled : cancontinue:=true;
       ms_processed : cancontinue:=true;
       ms_moduleerror : cancontinue:=true;
+    {$IFDEF DisableCTaskPPU}
     else
       InternalError(2024011802);
+    {$ENDIF}
     end;
   end;
 
-  // EnableCTaskPPU: remove checksub
-  if (not cancontinue) and checksub then
-    begin
-    checkused(m2);
-    if m2<>nil then
-      firstwaiting:=m2;
-    end;
   {$IFDEF DEBUG_CTASK_VERBOSE}
   Write('CTASK: ',m.ToString,' state: ',m.state,', can continue: ',Result);
   if result then
@@ -290,71 +255,7 @@ end;
 function ttask_handler.cancontinue(t : ttask_list; out firstwaiting : tmodule): boolean;
 
 begin
-  Result:=cancontinue(t.module,true,firstwaiting);
-end;
-
-function ttask_handler.countwaiting(m: tmodule; out highest_state: tmodulestate; out
-  firsthighestwaiting: tmodule): integer;
-var
-  i: Integer;
-  dep_unit: tdependent_unit;
-  state: tmodulestate;
-  waitfor_unit: tmodule;
-begin
-  Result:=0;
-  highest_state:=ms_registered;
-  firsthighestwaiting:=nil;
-
-  if m.is_initial and not m.is_unit then
-    // program/library
-    exit;
-
-  if m.waitingunits<>nil then
-  begin
-    for i:=0 to m.waitingunits.Count-1 do
-    begin
-      waitfor_unit:=tmodule(m.waitingunits[i]);
-      state:=waitfor_unit.state;
-      if state in [ms_compiled, ms_processed] then
-        // not waiting
-      else if state<highest_state then
-        // worse
-      else if state=highest_state then
-        // same
-        inc(Result)
-      else
-        begin
-        // better
-        Result:=1;
-        highest_state:=state;
-        firsthighestwaiting:=waitfor_unit;
-        end;
-    end;
-  end;
-
-  if m.dependent_units<>nil then
-  begin
-    dep_unit:=tdependent_unit(m.dependent_units.First);
-    while dep_unit<>nil do
-      begin
-      state:=dep_unit.u.state;
-      if state in [ms_compiled, ms_processed] then
-        // not waiting
-      else if state<highest_state then
-        // worse
-      else if state=highest_state then
-        // same
-        inc(Result)
-      else
-        begin
-        // better
-        Result:=1;
-        highest_state:=state;
-        firsthighestwaiting:=dep_unit.u;
-        end;
-      dep_unit:=tdependent_unit(dep_unit.Next);
-      end;
-  end;
+  Result:=cancontinue(t.module,firstwaiting);
 end;
 
 function ttask_handler.continue_task(t : ttask_list) : Boolean;
@@ -369,18 +270,16 @@ begin
   {$IFDEF DEBUG_CTASK}Writeln('CTASK: ',m.ToString,' Continues. State: ',m.state,' do_reload=',m.do_reload);{$ENDIF}
   if Assigned(t.state) then
     t.RestoreState;
-  {$IFDEF EnableCTaskPPU}
+  {$IFNDEF DisableCTaskPPU}
   if m.do_reload then
   begin
-    writeln('ttask_handler.continue ',m.modulename^,' ',m.state,' reloading...');
     tppumodule(m).reload;
-    exit;
+    exit(false);
   end;
-  writeln('ttask_handler.continue ',m.modulename^,' ',m.state,' continue...');
   {$ENDIF}
   case m.state of
     ms_registered : parser.compile_module(m);
-    {$IFDEF EnableCTaskPPU}
+    {$IFNDEF DisableCTaskPPU}
     ms_load: (m as tppumodule).continueloadppu;
     {$ENDIF}
     ms_compile :
@@ -403,9 +302,6 @@ begin
   else
     InternalError(2024011801);
   end;
-  {$IFDEF EnableCTaskPPU}
-  writeln('ttask_handler.continue AFTER ',m.modulename^,' ',m.state,' reload=',m.do_reload);
-  {$ENDIF}
 
   if (m.is_initial and not m.is_unit) and (list.Count>1) then
     // program must wait for all units to finish
@@ -434,49 +330,53 @@ begin
     rebuild_hash;
 end;
 
-{$IFDEF EnableCTaskPPU}
+{$IFNDEF DisableCTaskPPU}
 function ttask_handler.check_cycle: boolean;
+// returns true if something changed
 var
   last: ttask_list;
+  cycle_unit: tppumodule;
 
   function Search(m: tppumodule): boolean;
   var
-    uu: tused_unit;
     pm: tppumodule;
+    firstwaiting: tmodule;
   begin
     Result:=false;
 
     // mark module as searched
     m.cycle_search_stamp:=m.cycle_stamp;
 
-    uu:=tused_unit(m.used_units);
-    while uu<>nil do
+    cancontinue(m,firstwaiting);
+    if firstwaiting=nil then
+      Internalerror(2026021913);
+    pm:=tppumodule(firstwaiting);
+    if pm.cycle_stamp=pm.cycle_search_stamp then
     begin
-      pm:=tppumodule(uu.u);
-      if pm<>nil then
-      begin
-        if pm=last.module then
-          Result:=true
-        else if pm.cycle_stamp=pm.cycle_search_stamp then
-          // already searched
-        else
-          Result:=Result or Search(pm);
-      end;
-      uu:=tused_unit(uu.Next);
+      // cycle found
+      cycle_unit:=pm;
+      Result:=true;
+    end else if Search(pm) then
+    begin
+      // m and pm are part of the cycle
+      Result:=true;
     end;
 
     if Result then
     begin
-      // cycle detected -> recompile ppu
-      if m.state=ms_load then
+      // m is part of the cycle -> recompile ppu
+      if m.fromppu then
       begin
         {$IFDEF DEBUG_CTASK}
-        writeln('PPUALGO check_cycle last=',last.module.modulename^,' ',last.module.state,', RECOMPILE ',m.modulename^,' ',m.state);
+        writeln('PPUALGO check_cycle last=',last.module.modulename^,' ',last.module.statestr,', RECOMPILE ',m.modulename^,' ',m.statestr);
         {$ENDIF}
         m.recompile_cycle;
-        check_cycle:=true;
+        check_cycle:=true; // something changed
       end;
     end;
+
+    if m=cycle_unit then
+      Result:=false; // the cycle started with m, the remaining path is not part of the cycle
   end;
 
 var
@@ -490,15 +390,19 @@ begin
   last:=nil;
   while t<>nil do
     begin
+    {$IFDEF DEBUG_CTASK}
+    writeln('PPUALGO check_cycle queued: ',t.module.modulename^,' ',t.module.statestr);
+    {$ENDIF}
     if (last=nil) or (last.module.unit_index<t.module.unit_index) then
       last:=t;
     t:=t.nexttask;
     end;
 
   if tppumodule.cycle_stamp=high(dword) then
-    tppumodule.cycle_stamp:=0
-  else
-    inc(tppumodule.cycle_stamp);
+    Internalerror(2026021623);
+  inc(tppumodule.cycle_stamp);
+
+  cycle_unit:=nil;
   Search(tppumodule(last.module));
 end;
 {$ENDIF}
@@ -522,7 +426,7 @@ procedure ttask_handler.processqueue;
 
 var
   t, besttask: ttask_list;
-  firstwaiting, bestmod, m, firsthighestwaiting: tmodule;
+  firstwaiting, m: tmodule;
 
 begin
   // Strategy: goal is to write ppus early, so that mem is freed early and in case of an error
@@ -541,7 +445,7 @@ begin
       m:=t.module;
       if (besttask<>nil) and (besttask.module.unit_index>m.unit_index) then
         // skip
-      else if cancontinue(m,false,firstwaiting) then
+      else if cancontinue(m,firstwaiting) then
         begin
         {$IFDEF DEBUG_CTASK}
         Writeln('CTASK: ',m.ToString,' state=',m.state,' unit_index=',m.unit_index);
@@ -554,7 +458,7 @@ begin
       t:=t.nexttask;
       end;
 
-    {$IFDEF EnableCTaskPPU}
+    {$IFNDEF DisableCTaskPPU}
     if besttask=nil then
       if check_cycle then continue;
     {$ENDIF}
@@ -585,7 +489,17 @@ var
 
 begin
   n:=m.modulename^;
-  e:=ttask_list(Hash.Find(n));
+  //e:=ttask_list(Hash.Find(n));
+
+  e:=findtask(m);
+  {$IFDEF DEBUG_CTASK}
+  //if findtask(m)<>e then
+  //begin
+  //  writeln('ttask_handler.addmodule Hash<>findtask ',m.modulename^);
+  //  Internalerror(2026021902);
+  //end;
+  {$ENDIF}
+
   if e=nil then
     begin
     {$IFDEF DEBUG_CTASK}Writeln('CTASK: ',m.ToString,' added to task scheduler. State: ',m.state,' unit_index=',m.unit_index);{$ENDIF}
@@ -618,9 +532,50 @@ end;
 
 procedure ttask_handler.write_queue;
 var
-  t: ttask_list;
+  last: ttask_list;
+  cycle_unit: tppumodule;
+
+  function Search(m: tppumodule): boolean;
+  var
+    pm: tppumodule;
+    firstwaiting: tmodule;
+  begin
+    Result:=false;
+
+    // mark module as searched
+    m.cycle_search_stamp:=m.cycle_stamp;
+
+    cancontinue(m,firstwaiting);
+    if firstwaiting=nil then
+      exit;
+    pm:=tppumodule(firstwaiting);
+    if pm.cycle_stamp=pm.cycle_search_stamp then
+    begin
+      // cycle found
+      cycle_unit:=pm;
+      Result:=true;
+      writeln('cycle found: ',pm.modulename^,' ',pm.statestr,' ppu=',pm.fromppu,' used by...');
+    end else if Search(pm) then
+    begin
+      // m and pm are part of the cycle
+      Result:=true;
+    end;
+
+    if Result then
+    begin
+      // m is part of the cycle -> recompile ppu
+      writeln(' cycle-path: ',m.modulename^,' ',m.statestr,' ppu=',m.fromppu,' used by...');
+    end;
+
+    if m=cycle_unit then
+      Result:=false; // the cycle started with m, the remaining path is not part of the cycle
+  end;
+
+var
+  t, wt: ttask_list;
   firstwaiting, m: tmodule;
   cc: Boolean;
+  n: TSymStr;
 begin
   writeln('ttask_handler.write_queue:');
   t:=list.firsttask;
@@ -628,12 +583,46 @@ begin
     begin
     cc:=cancontinue(t,firstwaiting);
     m:=t.module;
+
+    if m.is_unit then
+    begin
+      n:=m.modulename^;
+      wt:=ttask_list(Hash.Find(n));
+      if wt<>t then
+        writeln('Error: module=',m.modulename^,' ',m.statestr,' wrong hash task');
+    end;
+
     if firstwaiting<>nil then
-      writeln('queue: ',m.realmodulename^,' ',m.statestr,' cancontinue=',cc,' firstwaiting=',firstwaiting.realmodulename^,' ',firstwaiting.state)
+    begin
+      writeln('queue: ',m.modulename^,' ',m.statestr,' cancontinue=',cc,' firstwaiting=',firstwaiting.modulename^,' ',firstwaiting.statestr,' intfcompiled=',firstwaiting.interface_compiled,' crc=',firstwaiting.crc_final);
+      wt:=findtask(firstwaiting);
+      if wt=nil then
+        writeln('Error: waiting for ',firstwaiting.modulename^,', which is not in queue');
+    end
     else
-      writeln('queue: ',m.realmodulename^,' ',m.statestr,' cancontinue=',cc,' firstwaiting=nil');
+      writeln('queue: ',m.modulename^,' ',m.statestr,' cancontinue=',cc,' firstwaiting=nil');
     t:=t.nexttask;
     end;
+
+  // write a cycle:
+
+  // find highest unit_index in queue
+  t:=list.firsttask;
+  if t=nil then exit;
+  last:=nil;
+  while t<>nil do
+    begin
+    if (last=nil) or (last.module.unit_index<t.module.unit_index) then
+      last:=t;
+    t:=t.nexttask;
+    end;
+  writeln('last unit_index: ',last.module.modulename^,' ',last.module.unit_index);
+
+  if tppumodule.cycle_stamp=high(dword) then
+    Internalerror(2026021624);
+  inc(tppumodule.cycle_stamp);
+
+  Search(tppumodule(last.module));
 end;
 
 end.
