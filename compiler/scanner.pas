@@ -838,7 +838,9 @@ implementation
     procedure SetAppType(NewAppType:tapptype);
       begin
 {$ifdef i8086}
-        if (target_info.system in [system_i8086_msdos,system_i8086_embedded]) and (apptype<>NewAppType) then
+        { Set application extension regardless if it might or might not have been correct.
+          Important for secondary compilations from Textmode IDE. }
+        if (target_info.system in [system_i8086_msdos,system_i8086_embedded]) then
           begin
             if NewAppType=app_com then
               begin
@@ -1673,7 +1675,7 @@ type
                 hmodule:=find_module_from_symtable(srsym.Owner);
                 if not Assigned(hmodule) then
                   internalerror(201001120);
-                if hmodule.unit_index=current_filepos.moduleindex then
+                if hmodule.moduleid=current_filepos.moduleindex then
                   begin
                     preproc_consume(_POINT);
                     current_scanner.skipspace;
@@ -4173,7 +4175,7 @@ type
         filepos.line:=line_no;
         filepos.column:=tokenpos-lastlinepos;
         filepos.fileindex:=inputfile.ref_index;
-        filepos.moduleindex:=current_module.unit_index;
+        filepos.moduleindex:=current_module.moduleid;
       end;
 
 
