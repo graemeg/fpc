@@ -1971,6 +1971,14 @@ var
   ifile: sizeint;
 begin
   DisposeBrowserCol;
+
+  if (cs_browser in current_settings.moduleswitches) then
+    if not assigned(current_module.arraydefs) then
+      { Need this to get variable size in memory (MemInfo.Size).
+        Units always fall in this branch, because
+        their "arraydefs" is destroyed as soon they are compiled. }
+      current_module.arraydefs:=THashSet.Create(64,true,false);
+
   if (cs_browser in current_settings.moduleswitches) then
     NewBrowserCol;
 
@@ -2050,22 +2058,34 @@ begin
          begin
            name:=GetStr(T.Name);
            UnitS:=SearchModule(Name);
-           puu:=tused_unit(hp.used_units.first);
+           puu:=nil;
+           if assigned(hp.used_units) then
+             puu:=tused_unit(hp.used_units.first);
            while (puu<>nil) do
            begin
-             module:=GetStr(puu.u.modulename);
-             PM:=SearchModule(module);
-             if Assigned(PM) then
-               UnitS^.AddUsedUnit(PM);
+             if assigned(puu.u) then
+               if assigned(puu.u.modulename) then
+               begin
+                 module:=GetStr(puu.u.modulename);
+                 PM:=SearchModule(module);
+                 if Assigned(PM) then
+                   UnitS^.AddUsedUnit(PM);
+               end;
              puu:=tused_unit(puu.next);
            end;
-           pdu:=tdependent_unit(hp.dependent_units.first);
+           pdu:=nil;
+           if assigned(hp.dependent_units) then
+             pdu:=tdependent_unit(hp.dependent_units.first);
            while (pdu<>nil) do
            begin
-             name:=GetStr(tsymtable(pdu.u.globalsymtable).name);
-             PM:=SearchModule(Name);
-             if Assigned(PM) then
-               UnitS^.AddDependentUnit(PM);
+             if assigned(pdu.u) then
+               if assigned(pdu.u.globalsymtable) then
+               begin
+                 name:=GetStr(tsymtable(pdu.u.globalsymtable).name);
+                 PM:=SearchModule(Name);
+                 if Assigned(PM) then
+                   UnitS^.AddDependentUnit(PM);
+               end;
              pdu:=tdependent_unit(pdu.next);
            end;
          end;

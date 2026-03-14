@@ -403,9 +403,17 @@ CONST
 {<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}
 
 {$IFDEF FPC_DOTTEDUNITS}
-uses    System.Console.Mouse;
+uses
+{$ifdef GO32V2}
+  DOSApi.dpmiexcp,
+{$endif}
+  System.Console.Mouse;
 {$ELSE FPC_DOTTEDUNITS}
-uses    Mouse;
+uses
+{$ifdef GO32V2}
+  Dpmiexcp,
+{$endif}
+  Mouse;
 {$ENDIF FPC_DOTTEDUNITS}
 
 resourcestring  sVideoFailed='Video initialization failed.';
@@ -415,7 +423,7 @@ resourcestring  sVideoFailed='Video initialization failed.';
 {***************************************************************************}
 {                        PRIVATE DEFINED CONSTANTS                          }
 {***************************************************************************}
-{$ifdef windows}
+{$ifdef OS_WINDOWS}
 Const
    fvConsoleMode =(ENABLE_MOUSE_INPUT or
                    ENABLE_WINDOW_INPUT or
@@ -425,11 +433,14 @@ Const
                     ENABLE_ECHO_INPUT or
                     ENABLE_INSERT_MODE or
                     ENABLE_QUICK_EDIT_MODE);
-{$endif windows}
+{$endif OS_WINDOWS}
 
 {***************************************************************************}
- {                      PRIVATE INITIALIZED VARIABLES                        }
+{                      PRIVATE UNINITIALIZED VARIABLES                      }
 {***************************************************************************}
+{$ifdef go32v2}
+var Ctrl_c_state : boolean;
+{$endif}
 
 {---------------------------------------------------------------------------}
 {                      INITIALIZED PRIVATE VARIABLES                        }
@@ -1139,9 +1150,12 @@ BEGIN
    { init mouse and cursor }
    {$IFDEF FPC_DOTTEDUNITS}System.Console.{$ENDIF}Video.SetCursorType(crHidden);
    SetMouseXY(0,0);    { mouse is zero based, set to left upper corner }
-   {$ifdef windows}
+   {$ifdef OS_WINDOWS}
    SetConsoleMode(GetStdHandle(cardinal(Std_Input_Handle)),fvConsoleMode);
-   {$endif windows}
+   {$endif OS_WINDOWS}
+{$ifdef go32v2}
+   Ctrl_c_state:=djgpp_set_ctrl_c(false);
+{$endif go32v2}
 END;
 
 {--TApplication-------------------------------------------------------------}
@@ -1163,9 +1177,12 @@ BEGIN
 {   DoneMemory;}                                       { Close memory }
    donekeyboard;
 {   DoneResource;}
-   {$ifdef windows}
+   {$ifdef OS_WINDOWS}
    SetConsoleMode(GetStdHandle(cardinal(Std_Input_Handle)),StartupConsoleMode);
-   {$endif windows}
+   {$endif OS_WINDOWS}
+{$ifdef go32v2}
+   djgpp_set_ctrl_c(Ctrl_c_state);
+{$endif go32v2}
 END;
 
 {--TApplication-------------------------------------------------------------}
@@ -1199,9 +1216,12 @@ var s:string;
 {$endif}
 
 BEGIN                                                 { Compatibility only }
-  {$ifdef windows}
+{$ifdef go32v2}
+   djgpp_set_ctrl_c(Ctrl_c_state);
+{$endif go32v2}
+  {$ifdef OS_WINDOWS}
   SetConsoleMode(GetStdHandle(cardinal(Std_Input_Handle)),StartupConsoleMode);
-  {$endif windows}
+  {$endif OS_WINDOWS}
   DoneSysError;
   DoneEvents;
 {$ifdef FV_UNICODE}
@@ -1237,9 +1257,12 @@ BEGIN                                                 { Compatibility only }
   InitScreen;
   InitEvents;
   InitSysError;
-  {$ifdef windows}
+  {$ifdef OS_WINDOWS}
   SetConsoleMode(GetStdHandle(cardinal(Std_Input_Handle)),fvConsoleMode);
-  {$endif windows}
+  {$endif OS_WINDOWS}
+{$ifdef go32v2}
+  Ctrl_c_state:=djgpp_set_ctrl_c(false);
+{$endif go32v2}
   if (PrevHeight<>ScreenHeight) or (PrevWidth<>ScreenWidth) then
     { acknowledge new screen dimensions }
     { prevents to draw out of boundaries of new video buffer }
